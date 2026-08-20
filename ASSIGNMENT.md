@@ -526,9 +526,12 @@ module-level `xfail` marker once the tools are implemented.
 
 > **Q7** Explain the three design choices in `find_peer_asns_for_node`: the self-join on `link_id`,
 > the `DISTINCT`, and the INNER join to `itdk_node_as`. What does each buy and what does each cost?
-> Name the concrete rows in your result that demonstrate the fan-out `DISTINCT` collapses, and show
-> a fixture peer the INNER join excludes — explaining why excluding it, rather than returning a
-> null `peer_asn`, is the right contract for this tool.
+> Name the concrete rows in your result that demonstrate the fan-out `DISTINCT` collapses (not
+> every node shows this — you may need to try more than one seed). Then check whether the INNER
+> join actually excludes any peer in this fixture, e.g. by comparing against a LEFT JOIN variant of
+> the same query. If it excludes one, show it; if it does not, explain why the tradeoff still
+> matters for this tool's general contract, and describe what an excluded row would look like if
+> the fixture had one.
 
 ### Q8 — From the seed ASN to a node's peers
 
