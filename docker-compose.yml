@@ -1,0 +1,74 @@
+services:
+  outputs-init:
+    image: postgres:16-alpine
+    user: "0:0"
+    network_mode: none
+    command: ["sh", "-c", "mkdir -p /app/outputs && chown 10001:10001 /app/outputs && chmod 0770 /app/outputs"]
+    volumes:
+      - ./outputs:/app/outputs
+    restart: "no"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: itdk_fixture
+      POSTGRES_USER: fixture_admin
+      POSTGRES_PASSWORD: fixture-admin-local-only
+    volumes:
+      - itdk-fixture-db:/var/lib/postgresql/data
+      - ./data/initdb/001_schema_fixture.sql:/docker-entrypoint-initdb.d/001_schema_fixture.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixture_admin -d itdk_fixture"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    networks: [itdk-internal]
+    restart: unless-stopped
+
+  itdk-mcp:
+    build:
+      context: .
+    environment:
+      MCP_MASTER_KEY: "${MCP_MASTER_KEY:?export MCP_MASTER_KEY or pass the credentials file with --env-file}"
+      DATABASE_URL: postgresql://itdk_reader:fixture-reader-local-only@db:5432/itdk_fixture
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "${MCP_PORT:-8000}"
+      DB_POOL_MAX: "3"
+      QUERY_TIMEOUT_MS: "5000"
+      OUTPUT_DIR: /app/outputs
+      LOG_LEVEL: INFO
+    init: true
+    depends_on:
+      outputs-init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8000}:${MCP_PORT:-8000}"
+    volumes:
+      - ./outputs:/app/outputs
+    networks:
+      - default
+      - itdk-internal
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:${MCP_PORT:-8000}/healthz', timeout=2).close()
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+networks:
+  itdk-internal:
+    internal: true
+
+volumes:
+  itdk-fixture-db:

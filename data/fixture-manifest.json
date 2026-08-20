@@ -1,0 +1,19 @@
+{
+  "fixture_id": "nids-itdk-mcp-synthetic-v1",
+  "schema": "caida_itdk",
+  "synthetic": true,
+  "source": "Purpose-built documentation-only records; not derived from CAIDA ITDK data.",
+  "tables": {
+    "itdk_link_endpoints": 14,
+    "itdk_node_as": 8,
+    "itdk_node_geolocation": 6,
+    "itdk_router_hostnames": 11
+  },
+  "seed_identifiers": {
+    "asns": [64500, 64501],
+    "countries": ["DE", "US"],
+    "links": ["L1", "L2", "L3", "L4", "L5", "L6"],
+    "nodes": ["N1", "N2", "N3", "N4", "N5", "N6"],
+    "hostname_prefixes": ["edge", "edge%", "edge_", "edge\\"]
+  }
+}

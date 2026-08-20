@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nids-itdk-mcp"
+version = "0.1.0"
+description = "Teaching scaffold for a read-only CAIDA ITDK MCP server"
+requires-python = ">=3.12"
+dependencies = [
+  "anyio>=4.5,<5",
+  "Flask>=3.1,<4",
+  "jsonschema>=4.23,<5",
+  "mcp>=1.28.1,<2",
+  "psycopg[binary,pool]>=3.2,<4",
+  "starlette>=0.41,<1",
+  "uvicorn>=0.30,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "jupyterlab>=4.2,<5",
+  "mypy>=1.17,<2",
+  "pandas>=2.2,<4",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.1,<2",
+  "ruff>=0.12,<1",
+  "types-jsonschema>=4.23,<5",
+]
+
+[project.scripts]
+itdk-mcp = "itdk_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/itdk_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "student: executable specifications for TODO(student) work (expected to fail in the starter)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["itdk_mcp"]
