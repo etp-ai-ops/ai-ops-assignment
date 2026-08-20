@@ -1,4 +1,4 @@
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | Safe Queries ⮕ | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | Safe Queries ⮕ | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
 
 # Safe Query Guide
 
@@ -52,6 +52,8 @@ The teaching relations are large enough that unconstrained scans can harm a shar
 | endpoints of one link | `link_id` |
 | links containing one node | `node_id` |
 | hostname lookup | one IP, exact hostname, or sufficiently long hostname prefix |
+| peer ASNs at one node's links | `node_id`, via a self-join on `link_id` |
+| hostnames for nodes in one AS | `asn` |
 
 The composite geolocation index begins with `country`, so a longitude-only tool would not meet the intended access pattern. This is why `country` remains required even when bounds are supplied. Classroom scale is controlled with vetted seeds, a frozen subset, timeouts, quotas, and pooling—not caller-controlled query fragments or arbitrary row limits.
 
@@ -117,4 +119,4 @@ For each student-owned query, ask:
 - Does a prefix containing `%`, `_`, or backslash remain literal?
 - Can the operation write to the database or reveal internal errors?
 
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | Safe Queries ⮕ | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | Safe Queries ⮕ | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)

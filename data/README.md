@@ -1,4 +1,4 @@
-[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-itdk-representation.md) | [Task 2](../Task-2-lookup-tools.md) | [Task 3](../Task-3-hostname-selectors.md) | [Task 4](../Task-4-new-tool.md) | [Task 5](../Task-5-topology-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)
+[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-sql-exploration.md) | [Task 2](../Task-2-agent-investigation.md) | [Task 3](../Task-3-new-mcp-tools.md) | [Task 4](../Task-4-mcp-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)
 
 # Synthetic Fixture Data
 
@@ -37,4 +37,4 @@ procedure before deleting the Compose volume; resetting removes all local fixtur
 state. Generated CSVs live under `outputs/`, are git-ignored, and should be cleaned up
 according to the course retention policy.
 
-[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-itdk-representation.md) | [Task 2](../Task-2-lookup-tools.md) | [Task 3](../Task-3-hostname-selectors.md) | [Task 4](../Task-4-new-tool.md) | [Task 5](../Task-5-topology-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)
+[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-sql-exploration.md) | [Task 2](../Task-2-agent-investigation.md) | [Task 3](../Task-3-new-mcp-tools.md) | [Task 4](../Task-4-mcp-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)

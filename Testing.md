@@ -1,4 +1,4 @@
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | Testing ⮕ | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | Testing ⮕ | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
 
 # Testing Guide
 
@@ -84,6 +84,8 @@ Use the commands shipped with your scaffold. The expected Python workflow is:
 uv run pytest
 ```
 
+Tests for tools that ship complete (`get_link_endpoints`, `find_nodes_by_asn`, `search_nodes_by_geolocation`, `lookup_router_hostnames`) live in `tests/test_completed_infrastructure.py` and should already pass; they document the behavior those provided tools guarantee. `tests/test_student_tools.py` targets the three tools you build in Task 3 — expect roughly three times the test surface of a single guided extension, one full set of schema/dispatch/repository/fixture cases per new tool.
+
 Run a focused file or test while iterating:
 
 ```bash
@@ -97,6 +99,6 @@ Database integration tests may require the supported container runtime. If your 
 
 Hidden tests check announced observable behavior, including wrong types, unordered bounds, extra properties, SQL interpolation, missing ordering, wildcard escaping, and complete discovery/dispatch wiring. They should not depend on secret production rows or demand byte-for-byte agreement with a reference implementation.
 
-Passing visible tests is evidence, not proof, that your tool is complete. Use the guides and public contract to add at least one meaningful student-authored test per required tool, including the Task 4 vertical slice.
+Passing visible tests is evidence, not proof, that your tool is complete. Use the guides and public contract to add at least one meaningful student-authored test per required tool, including all three Task 3 vertical slices.
 
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | Testing ⮕ | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | Testing ⮕ | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)

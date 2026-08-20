@@ -1,4 +1,4 @@
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | MCP ⮕ | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | MCP ⮕ | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
 
 # MCP Guide
 
@@ -20,7 +20,7 @@ The protocol can be used by a deterministic Python client or by an MCP-capable a
 
 `tools/list` returns definitions that include a machine-oriented `name`, a human-readable `description`, an `inputSchema`, and an `outputSchema`. This server also labels its tools read-only, non-destructive, idempotent, and closed-world through annotations. Annotations help clients, but security still comes from validation, fixed implementation, and database permissions.
 
-In Task 0, inspect rather than memorize the discovered definition of `get_link_endpoints`. Identify:
+In Task 0, inspect rather than memorize the discovered definition of `get_link_endpoints` — one of four tools that ship complete. In Task 3 you will read this same discovery response for the three tools you design and build yourself, so get comfortable with what it exposes now. Identify:
 
 - what the description promises;
 - which argument is required and what strings are valid;
@@ -63,7 +63,7 @@ A useful separation of responsibility is:
 | Repository | fixed query, bound parameters, columns, ordering | arbitrary client query structure |
 | Executor/writer | connection use, streaming, atomic CSV output | analytical meaning |
 
-In the guided extension, all five pieces must agree. Advertising a tool without dispatch, or implementing a repository method without discovery, leaves an incomplete capability.
+For each of the three new tools you design in Task 3, all five pieces must agree. Advertising a tool without dispatch, or implementing a repository method without discovery, leaves an incomplete capability.
 
 ## 5. Structured CSV Results
 
@@ -118,4 +118,4 @@ Before considering a tool complete, confirm that:
 - rows have an explicit stable order; and
 - direct dispatch and an actual MCP session produce consistent results.
 
-[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | MCP ⮕ | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | [Introduction](Introduction.md) | [Datasets](Datasets.md) | MCP ⮕ | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)

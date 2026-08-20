@@ -1,12 +1,20 @@
 """MCP schemas, validation, dispatch, and safe error mapping.
 
-Only ``get_link_endpoints`` is complete in the starter. Search for
-``TODO(student)`` to find the intentionally narrow learning surface.
+``get_link_endpoints``, ``find_nodes_by_asn``, ``search_nodes_by_geolocation``,
+and ``lookup_router_hostnames`` are complete, restrictive, fully-worked tool
+contracts. Search for ``TODO(student)`` (here and in
+``data_access/links.py``/``data_access/topology.py``) to find the remaining
+student-owned learning surface: ``find_links_for_node``,
+``find_peer_asns_for_node``, and ``find_hostnames_for_asn``. None of those
+three tools has a ``TOOL_SCHEMAS``/``TOOL_DESCRIPTIONS`` entry or a dispatch
+branch yet -- adding those, plus a fixed repository query, is the assignment.
 """
 
 from __future__ import annotations
 
+import ipaddress
 import logging
+import math
 from collections.abc import Callable
 from functools import partial
 from typing import Any, Final, cast
@@ -25,6 +33,37 @@ MAX_ASN: Final = 9_223_372_036_854_775_807
 IDENTIFIER_SCHEMA: Final[dict[str, Any]] = {
     "type": "string",
     "minLength": 1,
+    "maxLength": MAX_IDENTIFIER_LENGTH,
+    "pattern": r"^(?=.*\S)[^\x00-\x1f\x7f]+$",
+}
+COUNTRY_SCHEMA: Final[dict[str, Any]] = {
+    "type": "string",
+    "pattern": r"^[A-Z]{2}$",
+}
+LONGITUDE_SCHEMA: Final[dict[str, Any]] = {
+    "type": "number",
+    "minimum": -180,
+    "maximum": 180,
+}
+LATITUDE_SCHEMA: Final[dict[str, Any]] = {
+    "type": "number",
+    "minimum": -90,
+    "maximum": 90,
+}
+IP_SELECTOR_SCHEMA: Final[dict[str, Any]] = {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 45,
+}
+HOSTNAME_EXACT_SCHEMA: Final[dict[str, Any]] = {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": MAX_IDENTIFIER_LENGTH,
+    "pattern": r"^(?=.*\S)[^\x00-\x1f\x7f]+$",
+}
+HOSTNAME_PREFIX_SCHEMA: Final[dict[str, Any]] = {
+    "type": "string",
+    "minLength": 3,
     "maxLength": MAX_IDENTIFIER_LENGTH,
     "pattern": r"^(?=.*\S)[^\x00-\x1f\x7f]+$",
 }
@@ -75,27 +114,34 @@ def _object_schema(
 
 TOOL_SCHEMAS: Final[dict[str, dict[str, Any]]] = {
     "get_link_endpoints": _object_schema({"link_id": IDENTIFIER_SCHEMA}, required=["link_id"]),
-    # TODO(student): Replace the three intentionally incomplete contracts below
-    # with restrictive schemas. Add find_links_for_node as the fourth task's
-    # complete vertical slice.
-    "find_nodes_by_asn": _object_schema({"asn": {"type": "number"}}, required=["asn"]),
+    "find_nodes_by_asn": _object_schema(
+        {"asn": {"type": "integer", "exclusiveMinimum": 0, "maximum": MAX_ASN}},
+        required=["asn"],
+    ),
     "search_nodes_by_geolocation": _object_schema(
         {
-            "country": {"type": "string"},
-            "longitude_min": {"type": "number"},
-            "longitude_max": {"type": "number"},
-            "latitude_min": {"type": "number"},
-            "latitude_max": {"type": "number"},
+            "country": COUNTRY_SCHEMA,
+            "longitude_min": LONGITUDE_SCHEMA,
+            "longitude_max": LONGITUDE_SCHEMA,
+            "latitude_min": LATITUDE_SCHEMA,
+            "latitude_max": LATITUDE_SCHEMA,
         },
         required=["country"],
     ),
     "lookup_router_hostnames": _object_schema(
         {
-            "ip": {"type": "string"},
-            "hostname_exact": {"type": "string"},
-            "hostname_prefix": {"type": "string"},
-        }
+            "ip": IP_SELECTOR_SCHEMA,
+            "hostname_exact": HOSTNAME_EXACT_SCHEMA,
+            "hostname_prefix": HOSTNAME_PREFIX_SCHEMA,
+        },
+        one_of=[
+            {"required": ["ip"], "properties": {"hostname_exact": False, "hostname_prefix": False}},
+            {"required": ["hostname_exact"], "properties": {"ip": False, "hostname_prefix": False}},
+            {"required": ["hostname_prefix"], "properties": {"ip": False, "hostname_exact": False}},
+        ],
     ),
+    # TODO(student): Add find_links_for_node, find_peer_asns_for_node, and
+    # find_hostnames_for_asn here with restrictive schemas of your own design.
 }
 
 TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
@@ -105,7 +151,8 @@ TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
     "lookup_router_hostnames": (
         "Write router hostnames selected by exactly one IP, exact name, or prefix to CSV."
     ),
-    # TODO(student): Add find_links_for_node with a precise description.
+    # TODO(student): Add descriptions for find_links_for_node,
+    # find_peer_asns_for_node, and find_hostnames_for_asn.
 }
 
 
@@ -202,8 +249,33 @@ def _validate_input(name: str, arguments: dict[str, Any]) -> None:
     if next(validator.iter_errors(arguments), None) is not None:
         raise SafeToolError("INVALID_ARGUMENT")
 
-    # TODO(student): Add finite/range/cross-field checks for geolocation and
-    # standards-based IPv4/IPv6 parsing for lookup_router_hostnames.
+    if name == "search_nodes_by_geolocation":
+        _validate_geolocation_bounds(arguments)
+    elif name == "lookup_router_hostnames":
+        _validate_ip_selector(arguments)
+
+
+def _validate_geolocation_bounds(arguments: dict[str, Any]) -> None:
+    for key in ("longitude_min", "longitude_max", "latitude_min", "latitude_max"):
+        value = arguments.get(key)
+        if value is not None and not math.isfinite(value):
+            raise SafeToolError("INVALID_ARGUMENT")
+    longitude_min, longitude_max = arguments.get("longitude_min"), arguments.get("longitude_max")
+    if longitude_min is not None and longitude_max is not None and longitude_min > longitude_max:
+        raise SafeToolError("INVALID_ARGUMENT")
+    latitude_min, latitude_max = arguments.get("latitude_min"), arguments.get("latitude_max")
+    if latitude_min is not None and latitude_max is not None and latitude_min > latitude_max:
+        raise SafeToolError("INVALID_ARGUMENT")
+
+
+def _validate_ip_selector(arguments: dict[str, Any]) -> None:
+    ip = arguments.get("ip")
+    if ip is None:
+        return
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError as exc:
+        raise SafeToolError("INVALID_ARGUMENT") from exc
 
 
 async def _dispatch(
@@ -230,7 +302,9 @@ async def _dispatch(
             hostname_exact=cast(str | None, arguments.get("hostname_exact")),
             hostname_prefix=cast(str | None, arguments.get("hostname_prefix")),
         )
-    # TODO(student): Dispatch find_links_for_node through repositories.links.
+    # TODO(student): Dispatch find_links_for_node through repositories.links,
+    # find_peer_asns_for_node and find_hostnames_for_asn through
+    # repositories.topology.
     else:
         raise SafeToolError("INVALID_ARGUMENT")
     return await anyio.to_thread.run_sync(operation)

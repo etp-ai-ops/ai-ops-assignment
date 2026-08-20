@@ -6,6 +6,7 @@ from .nodes import NodeRepository
 from .pool import DatabasePool
 from .repositories import Repositories
 from .result_writer import Column, CsvResult, CsvResultWriter
+from .topology import TopologyRepository
 
 __all__ = [
     "Column",
@@ -16,4 +17,5 @@ __all__ = [
     "LinkRepository",
     "NodeRepository",
     "Repositories",
+    "TopologyRepository",
 ]

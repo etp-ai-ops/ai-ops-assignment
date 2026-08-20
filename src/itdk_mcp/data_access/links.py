@@ -1,4 +1,10 @@
-"""Fixed link endpoint queries and the student vertical-slice extension."""
+"""Fixed link endpoint queries and the student vertical-slice extension.
+
+``get_link_endpoints`` is complete. ``find_links_for_node`` is one of the
+three remaining student-owned tools (alongside ``TopologyRepository``'s two
+new methods) -- it has no ``TOOL_SCHEMAS``/``TOOL_DESCRIPTIONS`` entry and no
+dispatch branch yet.
+"""
 
 from __future__ import annotations
 

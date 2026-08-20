@@ -1,4 +1,4 @@
-[README](README.md) | Introduction ⮕ | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | Introduction ⮕ | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
 
 # Introduction
 
@@ -47,7 +47,7 @@ Good tools help a client choose correctly. Their names and descriptions distingu
 
 ## Evidence, Inference, and Agents
 
-An MCP-capable agent can discover tools, compose calls, and propose an explanation. It cannot make weak evidence stronger. In Task 5, treat an agent's prose as a hypothesis to audit. A defensible answer records:
+An MCP-capable agent can discover tools, compose calls, and propose an explanation. It cannot make weak evidence stronger. Task 2 connects a real agent to your already-complete MCP server for the first time, and Task 4 asks you to audit an agent's full evidence-based interpretation; in both places, treat an agent's prose as a hypothesis to audit, not a result to trust. A defensible answer records:
 
 1. the exact tool name and arguments;
 2. the returned filename or stable artifact identifier and row count;
@@ -62,4 +62,4 @@ The grade attaches to reproducible behavior, captured evidence, analysis, and yo
 - [Hoiho: Internet Router Geolocation using Hostname Data](https://www.caida.org/catalog/papers/2021_hoiho/) (paper) — background on hostname-based router geolocation.
 - [MCP Schema Reference](https://modelcontextprotocol.io/specification/2025-11-25/schema) (specification) — protocol message and schema details beyond what this assignment requires.
 
-[README](README.md) | Introduction ⮕ | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-itdk-representation.md) | [Task 2](Task-2-lookup-tools.md) | [Task 3](Task-3-hostname-selectors.md) | [Task 4](Task-4-new-tool.md) | [Task 5](Task-5-topology-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
+[README](README.md) | Introduction ⮕ | [Datasets](Datasets.md) | [MCP](MCP.md) | [Safe Queries](Safe-Queries.md) | [Testing](Testing.md) | [Tasks](Tasks.md) | [Task 0](Task-0-orientation.md) | [Task 1](Task-1-sql-exploration.md) | [Task 2](Task-2-agent-investigation.md) | [Task 3](Task-3-new-mcp-tools.md) | [Task 4](Task-4-mcp-investigation.md) | [Notebook](nids-itdk-mcp.ipynb)
