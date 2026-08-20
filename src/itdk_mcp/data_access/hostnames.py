@@ -1,7 +1,7 @@
 """Fixed router-hostname lookup queries.
 
 Complete, worked example of the mutually-exclusive-selector pattern from
-Safe-Queries.md Sections 6-7: exactly one of ``ip``, ``hostname_exact``, or
+ASSIGNMENT.md section 3 (rules 6-7): exactly one of ``ip``, ``hostname_exact``, or
 ``hostname_prefix`` selects one of three fixed, parameterized queries, and
 prefix matching escapes backslash, then ``%``, then ``_`` before appending
 the server-owned trailing wildcard.

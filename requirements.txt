@@ -1,1 +1,4 @@
 -e .[dev]
+# Used by the notebook's Part 2/3 agent cells (Anthropic Messages API MCP
+# connector). Also declared in pyproject.toml; pinned here for visibility.
+anthropic>=1.0,<2

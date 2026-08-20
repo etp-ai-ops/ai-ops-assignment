@@ -2,12 +2,11 @@
 
 These tests are expected failures in the distributed starter: none of
 ``find_links_for_node``, ``find_peer_asns_for_node``, or
-``find_hostnames_for_asn`` has a ``TOOL_SCHEMAS``/``TOOL_DESCRIPTIONS`` entry,
-a dispatch branch, or a repository body yet -- see ``data_access/links.py``
-and ``data_access/topology.py`` for the ``TODO(student)`` markers and the
-intended reference SQL for each. Remove the module-level ``xfail`` marker
-after implementing the tool(s) you choose to build, then add at least one
-meaningful test of your own per tool to this file.
+``find_hostnames_for_asn`` has a schema, a description, or a query body yet
+-- see ``src/itdk_mcp/student_tools.py`` for the ``TODO(student)`` markers and
+the intended reference SQL for each. Remove the module-level ``xfail`` marker
+after implementing the tool(s) you build, then add at least one meaningful
+test of your own per tool to this file.
 """
 
 from __future__ import annotations
@@ -18,10 +17,13 @@ import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 from itdk_mcp.data_access import CsvResult
-from itdk_mcp.data_access.links import LinkRepository
 from itdk_mcp.data_access.query import Query
-from itdk_mcp.data_access.topology import TopologyRepository
 from itdk_mcp.mcp_tools import TOOL_DESCRIPTIONS, TOOL_SCHEMAS
+from itdk_mcp.student_tools import (
+    find_hostnames_for_asn,
+    find_links_for_node,
+    find_peer_asns_for_node,
+)
 
 pytestmark = [
     pytest.mark.student,
@@ -64,7 +66,7 @@ def test_find_links_for_node_is_a_discoverable_tool() -> None:
 
 def test_find_links_for_node_repository_is_fixed_and_stably_ordered() -> None:
     executor = RecordingExecutor()
-    LinkRepository(executor).find_links_for_node("N1")
+    find_links_for_node(executor, "N1")
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
     assert parameters == ("N1",)
@@ -93,7 +95,7 @@ def test_find_peer_asns_for_node_is_a_discoverable_tool() -> None:
 
 def test_find_peer_asns_for_node_query_self_joins_links_and_as_assignments() -> None:
     executor = RecordingExecutor()
-    TopologyRepository(executor).find_peer_asns_for_node("N2")
+    find_peer_asns_for_node(executor, "N2")
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
     assert parameters == ("N2",)
@@ -126,7 +128,7 @@ def test_find_hostnames_for_asn_is_a_discoverable_tool() -> None:
 
 def test_find_hostnames_for_asn_query_parses_endpoint_token_and_joins_hostnames() -> None:
     executor = RecordingExecutor()
-    TopologyRepository(executor).find_hostnames_for_asn(64500)
+    find_hostnames_for_asn(executor, 64500)
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
     assert parameters == (64500,)

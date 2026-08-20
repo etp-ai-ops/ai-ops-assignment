@@ -2,12 +2,12 @@
 
 ``get_link_endpoints``, ``find_nodes_by_asn``, ``search_nodes_by_geolocation``,
 and ``lookup_router_hostnames`` are complete, restrictive, fully-worked tool
-contracts. Search for ``TODO(student)`` (here and in
-``data_access/links.py``/``data_access/topology.py``) to find the remaining
-student-owned learning surface: ``find_links_for_node``,
-``find_peer_asns_for_node``, and ``find_hostnames_for_asn``. None of those
-three tools has a ``TOOL_SCHEMAS``/``TOOL_DESCRIPTIONS`` entry or a dispatch
-branch yet -- adding those, plus a fixed repository query, is the assignment.
+contracts. Nothing in this file is student work: the three remaining tools
+(``find_links_for_node``, ``find_peer_asns_for_node``, and
+``find_hostnames_for_asn``) are declared, implemented, and dispatched entirely
+from ``student_tools.py`` -- search ``TODO(student)`` there. Their schemas and
+descriptions are merged into the registries below automatically, and any call
+naming one of them is routed to ``student_tools.dispatch``.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from mcp import types
 from mcp.server.lowlevel import Server
 
+from . import student_tools
 from .data_access import CsvResult, Repositories
 
 LOGGER = logging.getLogger(__name__)
@@ -140,8 +141,9 @@ TOOL_SCHEMAS: Final[dict[str, dict[str, Any]]] = {
             {"required": ["hostname_prefix"], "properties": {"ip": False, "hostname_exact": False}},
         ],
     ),
-    # TODO(student): Add find_links_for_node, find_peer_asns_for_node, and
-    # find_hostnames_for_asn here with restrictive schemas of your own design.
+    # The three student tools are declared in student_tools.py and merged in
+    # below; nothing needs to be added here.
+    **student_tools.STUDENT_TOOL_SCHEMAS,
 }
 
 TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
@@ -151,8 +153,7 @@ TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
     "lookup_router_hostnames": (
         "Write router hostnames selected by exactly one IP, exact name, or prefix to CSV."
     ),
-    # TODO(student): Add descriptions for find_links_for_node,
-    # find_peer_asns_for_node, and find_hostnames_for_asn.
+    **student_tools.STUDENT_TOOL_DESCRIPTIONS,
 }
 
 
@@ -302,9 +303,15 @@ async def _dispatch(
             hostname_exact=cast(str | None, arguments.get("hostname_exact")),
             hostname_prefix=cast(str | None, arguments.get("hostname_prefix")),
         )
-    # TODO(student): Dispatch find_links_for_node through repositories.links,
-    # find_peer_asns_for_node and find_hostnames_for_asn through
-    # repositories.topology.
+    elif name in student_tools.STUDENT_TOOL_SCHEMAS:
+        # Every student tool is routed through one branch; student_tools.py
+        # owns the schema, the description, and the fixed query.
+        student_result = await anyio.to_thread.run_sync(
+            partial(student_tools.dispatch, repositories.executor, name, arguments)
+        )
+        if student_result is None:
+            raise SafeToolError("INVALID_ARGUMENT")
+        return student_result
     else:
         raise SafeToolError("INVALID_ARGUMENT")
     return await anyio.to_thread.run_sync(operation)

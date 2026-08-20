@@ -1,9 +1,9 @@
 """Fixed node ASN and geolocation queries.
 
 Both tools are complete, fully-worked examples of the fixed, parameterized
-query pattern described in Safe-Queries.md: the SQL text never changes
+query pattern described in ASSIGNMENT.md section 3: the SQL text never changes
 between calls, every caller value is bound as a separate parameter, and the
-projected columns and ordering match Datasets.md's "Fixed Tool Projections"
+projected columns and ordering match ASSIGNMENT.md's "The seven tools"
 table exactly.
 """
 

@@ -43,7 +43,7 @@ def _fake_repositories(**overrides: object) -> SimpleNamespace:
         "links": SimpleNamespace(),
         "nodes": SimpleNamespace(),
         "hostnames": SimpleNamespace(),
-        "topology": SimpleNamespace(),
+        "executor": SimpleNamespace(),
     }
     base.update(overrides)
     return SimpleNamespace(**base)

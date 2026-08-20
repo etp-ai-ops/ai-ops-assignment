@@ -27,7 +27,11 @@ async def main() -> None:
             "search_nodes_by_geolocation",
             "lookup_router_hostnames",
         }
-        allowed = required | {"find_links_for_node"}
+        allowed = required | {
+            "find_links_for_node",
+            "find_peer_asns_for_node",
+            "find_hostnames_for_asn",
+        }
         if not required.issubset(names) or not set(names).issubset(allowed):
             raise RuntimeError(f"Unexpected tool set: {names!r}")
         result = await session.call_tool("get_link_endpoints", {"link_id": "L1"})

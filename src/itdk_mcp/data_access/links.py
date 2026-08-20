@@ -1,9 +1,8 @@
-"""Fixed link endpoint queries and the student vertical-slice extension.
+"""Fixed link endpoint queries.
 
-``get_link_endpoints`` is complete. ``find_links_for_node`` is one of the
-three remaining student-owned tools (alongside ``TopologyRepository``'s two
-new methods) -- it has no ``TOOL_SCHEMAS``/``TOOL_DESCRIPTIONS`` entry and no
-dispatch branch yet.
+``get_link_endpoints`` is complete and is the worked example of the fixed,
+parameterized query pattern. The student-built ``find_links_for_node`` lives
+in ``itdk_mcp/student_tools.py`` and reuses ``LINK_COLUMNS`` from here.
 """
 
 from __future__ import annotations
@@ -39,10 +38,3 @@ class LinkRepository:
     def get_link_endpoints(self, link_id: str) -> CsvResult:
         """Fully worked example of a fixed, parameterized repository query."""
         return self._executor.execute(_GET_LINK_ENDPOINTS, (link_id,))
-
-    def find_links_for_node(self, node_id: str) -> CsvResult:
-        """Write all link-endpoint records that contain ``node_id``."""
-        # TODO(student): Complete this vertical slice by defining a fixed Query
-        # above and executing it here. Preserve LINK_COLUMNS and stable ordering
-        # by link_id then endpoint_ordinal. Never interpolate node_id into SQL.
-        raise NotImplementedError("TODO(student): implement find_links_for_node")

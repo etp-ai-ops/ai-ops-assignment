@@ -1,10 +1,10 @@
-[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-sql-exploration.md) | [Task 2](../Task-2-agent-investigation.md) | [Task 3](../Task-3-new-mcp-tools.md) | [Task 4](../Task-4-mcp-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)
+[README](../README.md) | [Assignment](../ASSIGNMENT.md) | Fixture Data | [Notebook](../nids-itdk-mcp.ipynb)
 
 # Synthetic Fixture Data
 
 The local environment provisions `nids-itdk-mcp-synthetic-v1`, a deterministic,
 invented dataset for development and automated feedback. It has the same four-table
-teaching schema described in [Datasets](../Datasets.md), but none of its records come
+teaching schema described in [ASSIGNMENT.md](../ASSIGNMENT.md), but none of its records come
 from a CAIDA ITDK release. Do not interpret fixture results as observations about the
 public Internet.
 
@@ -37,4 +37,4 @@ procedure before deleting the Compose volume; resetting removes all local fixtur
 state. Generated CSVs live under `outputs/`, are git-ignored, and should be cleaned up
 according to the course retention policy.
 
-[README](../README.md) | [Introduction](../Introduction.md) | [Datasets](../Datasets.md) | Fixture Data ⮕ | [MCP](../MCP.md) | [Safe Queries](../Safe-Queries.md) | [Testing](../Testing.md) | [Tasks](../Tasks.md) | [Task 0](../Task-0-orientation.md) | [Task 1](../Task-1-sql-exploration.md) | [Task 2](../Task-2-agent-investigation.md) | [Task 3](../Task-3-new-mcp-tools.md) | [Task 4](../Task-4-mcp-investigation.md) | [Notebook](../nids-itdk-mcp.ipynb)
+[README](../README.md) | [Assignment](../ASSIGNMENT.md) | Fixture Data | [Notebook](../nids-itdk-mcp.ipynb)

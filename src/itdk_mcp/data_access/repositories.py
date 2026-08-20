@@ -11,7 +11,6 @@ from .nodes import NodeRepository
 from .pool import DatabasePool
 from .query import FixedQueryExecutor
 from .result_writer import CsvResultWriter
-from .topology import TopologyRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +18,9 @@ class Repositories:
     nodes: NodeRepository
     links: LinkRepository
     hostnames: HostnameRepository
-    topology: TopologyRepository
+    #: The same executor every repository above shares. ``student_tools.py``
+    #: receives it directly so a new tool needs no new repository class.
+    executor: FixedQueryExecutor
 
     @classmethod
     def from_settings(cls, settings: Settings, pool: DatabasePool) -> Repositories:
@@ -28,5 +29,5 @@ class Repositories:
             nodes=NodeRepository(executor),
             links=LinkRepository(executor),
             hostnames=HostnameRepository(executor),
-            topology=TopologyRepository(executor),
+            executor=executor,
         )
