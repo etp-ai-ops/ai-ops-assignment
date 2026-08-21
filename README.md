@@ -20,8 +20,9 @@ questions across three parts, all answered in one notebook.
 ## Setup
 
 Copy the two names-only templates to their git-ignored counterparts and fill in only the values
-your instructor supplies — including `ANTHROPIC_API_KEY` and `ITDK_PUBLIC_MCP_URL`, which Parts 2
-and 3 need for the notebook's agent cells. Never commit a real key.
+your instructor supplies — including `OPENAI_API_KEY` and `OPENAI_BASE_URL`, which Parts 2 and 3
+need for the notebook's agent cells (NRP Nautilus by default, so you aren't limited by needing your
+own Claude subscription/API key). Never commit a real key.
 
 ```bash
 cp itdk_mcp_credentials.env.example itdk_mcp_credentials.env
@@ -98,7 +99,7 @@ nids-itdk-mcp/
 
 - [CAIDA Internet Topology Data Kit](https://www.caida.org/catalog/datasets/internet-topology-data-kit/) — the dataset's purpose and release context.
 - [Model Context Protocol: Tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) — tool discovery, calls, input schemas, structured results.
-- [Anthropic MCP connector](https://docs.claude.com/en/docs/agents-and-tools/mcp-connector) — the remote-MCP parameters the notebook's agent cells use.
+- [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) — the `tools`/`tool_calls` shape the notebook's client-side agent loop uses.
 - Optional: [Hoiho: Internet Router Geolocation using Hostname Data](https://www.caida.org/catalog/papers/2021_hoiho/).
 
 Prerequisites: the NIDS [ITDK](https://github.com/CAIDA/nids-itdk) and

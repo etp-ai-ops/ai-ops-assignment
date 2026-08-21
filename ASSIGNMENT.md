@@ -16,7 +16,7 @@ inference when you report findings.
 | Part | What you do | Access path | Questions |
 | --- | --- | --- | --- |
 | 1 | Explore the four relations with hand-written SQL | direct read-only SQL, local fixture only | Q1–Q3 |
-| 2 | Use the 4 provided tools through an agent, in the notebook | Anthropic Messages API + MCP connector | Q4–Q5 |
+| 2 | Use the 4 provided tools through an agent, in the notebook | OpenAI-compatible client-side tool loop + MCP | Q4–Q5 |
 | 3 | Build 3 new tools, then investigate with all 7 | your code + the same agent cells | Q6–Q9 |
 
 ---
@@ -365,33 +365,34 @@ meaningful test of your own per tool** to that file (see Q6).
 
 ## 6. Calling the tools from an agent, in the notebook
 
-Parts 2 and 3 use the Anthropic Messages API's **remote MCP connector**: the model discovers and
-calls your MCP tools server-side, inside a single API call, from a plain Python cell. No separate
-agent process or desktop app is involved. The notebook's third "Complete setup" cell defines
-`call_agent_with_mcp_tools(prompt)` for you; the shape it uses is:
+Parts 2 and 3 run a **client-side tool-calling loop** against an OpenAI-compatible chat completions
+endpoint (NRP Nautilus by default, so you aren't limited by needing your own Claude subscription or
+API key). Unlike a server-side remote-MCP connector, this notebook process is what actually calls
+your MCP server: it lists your tools, sends the model a standard `tools=[...]` list built from that
+discovery call, executes whatever `tool_calls` the model requests against the MCP server itself, and
+feeds each result back as a `role: "tool"` message -- repeating until the model stops asking for
+tools. There is no separate agent process, no desktop app, and -- because the model never talks to
+your MCP server directly -- no public tunnel or hosted URL is required either; only this notebook
+process needs to reach it.
+
+The notebook's third "Complete setup" cell defines `call_agent_with_mcp_tools(prompt)` for you. Each
+turn of its loop looks like:
 
 ```python
-response = client.beta.messages.create(
-    model="claude-opus-5",
-    max_tokens=4096,
-    messages=[{"role": "user", "content": prompt}],
-    mcp_servers=[{
-        "type": "url",
-        "url": PUBLIC_MCP_URL,            # https:// SSE endpoint, reachable from Anthropic
-        "name": "itdk-mcp",
-        "authorization_token": MASTER_KEY,
-    }],
-    tools=[{"type": "mcp_toolset", "mcp_server_name": "itdk-mcp"}],
-    betas=["mcp-client-2025-11-20"],
+response = await agent_client.chat.completions.create(
+    model="gemma",                          # or another model your endpoint serves
+    max_tokens=16384,
+    messages=messages,
+    tools=tool_specs,                       # built from list_itdk_tools()
 )
 ```
 
-Both halves are required: an `mcp_servers` entry *and* a matching `mcp_toolset` in `tools`. The
-response content contains `mcp_tool_use` blocks (`name`, `server_name`, `input`) and
-`mcp_tool_result` blocks (`tool_use_id`, `is_error`, `content`) — that pair is the tool-call trace
-you record and audit. Because the connector runs at Anthropic, `url` must be publicly reachable
-over HTTPS; set `ITDK_PUBLIC_MCP_URL` to whatever tunnel or hosted URL your course deployment
-provides, and put your key in `ANTHROPIC_API_KEY` (never commit it).
+and every `tool_calls` entry the model returns is executed via `call_itdk_raw(name, arguments)` --
+the same MCP call your own audit cells make. The `trace` list `call_agent_with_mcp_tools` returns
+pairs one `{"kind": "call", ...}` record with one `{"kind": "result", ...}` record per tool call --
+that pair is what you record and audit. Two things this needs, both set in
+`itdk_mcp_credentials.env`: `OPENAI_API_KEY` (your endpoint's key -- never commit it) and
+`OPENAI_BASE_URL` (the endpoint's base URL).
 
 **An agent cannot make weak evidence stronger.** Treat its prose as a hypothesis to audit. A
 defensible answer records: the exact tool name and arguments; the returned artifact and row count;
