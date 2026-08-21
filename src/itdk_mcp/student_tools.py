@@ -67,33 +67,16 @@ def _object_schema(properties: dict[str, Any], *, required: list[str]) -> dict[s
 # ---------------------------------------------------------------------------
 
 STUDENT_TOOL_SCHEMAS: Final[dict[str, dict[str, Any]]] = {
-    "find_links_for_node": _object_schema({"node_id": IDENTIFIER_SCHEMA}, required=["node_id"]),
-    "find_peer_asns_for_node": _object_schema(
-        {"node_id": IDENTIFIER_SCHEMA}, required=["node_id"]
-    ),
-    "find_hostnames_for_asn": _object_schema({"asn": ASN_SCHEMA}, required=["asn"]),
+    # TODO(student): Add "find_links_for_node" and "find_peer_asns_for_node"
+    # entries taking one required node_id (IDENTIFIER_SCHEMA), and a
+    # "find_hostnames_for_asn" entry taking one required asn (ASN_SCHEMA).
+    # Use _object_schema(...) so additionalProperties stays false.
 }
 
 STUDENT_TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
-    "find_links_for_node": (
-        "Write every link-endpoint record whose node_id is this node to CSV. Returns only "
-        "that node's own endpoint rows (link_id, endpoint_ordinal, endpoint_token, node_id), "
-        "not the other endpoints of those links; pass each returned link_id to "
-        "get_link_endpoints to see a link's full endpoint set."
-    ),
-    "find_peer_asns_for_node": (
-        "Write the distinct ASNs adjacent to this node across its links to CSV, as "
-        "(peer_node_id, peer_asn, peer_method). A peer node with no AS-assignment row is "
-        "excluded entirely rather than reported with a null ASN; this answers 'which known "
-        "ASNs neighbor this node', not 'who are all of this node's neighbors'."
-    ),
-    "find_hostnames_for_asn": (
-        "Write the distinct (node_id, ip, hostname) triples observed for nodes assigned to "
-        "this ASN to CSV. An interface with no PTR record, or an endpoint whose token carries "
-        "no embedded address, is excluded rather than returned with a null hostname; this "
-        "answers 'which hostnames are we confident belong to a node in this ASN', not 'does "
-        "every node in this ASN have an interface'."
-    ),
+    # TODO(student): Add one precise description per tool. Say what the tool
+    # returns AND what it excludes -- an agent picks a tool from this text, so
+    # the INNER-join limitations belong here, not only in your notebook.
 }
 
 
@@ -103,23 +86,24 @@ STUDENT_TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
 #      ordered by (link_id, endpoint_ordinal)
 # ---------------------------------------------------------------------------
 
-_FIND_LINKS_FOR_NODE = Query(
-    sql.SQL("""
-        SELECT link_id, endpoint_ordinal, endpoint_token, node_id
-        FROM caida_itdk.itdk_link_endpoints
-        WHERE node_id = %s
-        ORDER BY link_id, endpoint_ordinal
-    """),
-    LINK_COLUMNS,
-    "find_links_for_node",
-)
+# TODO(student): Define _FIND_LINKS_FOR_NODE = Query(sql.SQL(...), LINK_COLUMNS,
+# "find_links_for_node") here.
 
 
 def find_links_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvResult:
     """Write all link-endpoint records that contain ``node_id``."""
+    # TODO(student): Complete this vertical slice by defining a fixed Query
+    # above and executing it here. Preserve LINK_COLUMNS and stable ordering
+    # by link_id then endpoint_ordinal. Never interpolate node_id into SQL:
+    #
+    #     SELECT link_id, endpoint_ordinal, endpoint_token, node_id
+    #     FROM caida_itdk.itdk_link_endpoints
+    #     WHERE node_id = %s
+    #     ORDER BY link_id, endpoint_ordinal
+    #
     # Filtering endpoint rows by one node answers "which endpoint records
     # contain this node?" -- it does not return every endpoint on those links.
-    return executor.execute(_FIND_LINKS_FOR_NODE, (node_id,))
+    raise NotImplementedError("TODO(student): implement find_links_for_node")
 
 
 # ---------------------------------------------------------------------------
@@ -128,32 +112,33 @@ def find_links_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvResult
 #      ordered by (peer_node_id, peer_asn)
 # ---------------------------------------------------------------------------
 
-_FIND_PEER_ASNS_FOR_NODE = Query(
-    sql.SQL("""
-        SELECT DISTINCT e2.node_id AS peer_node_id,
-               a2.asn AS peer_asn, a2.method AS peer_method
-        FROM caida_itdk.itdk_link_endpoints e1
-        JOIN caida_itdk.itdk_link_endpoints e2
-          ON e2.link_id = e1.link_id AND e2.node_id <> e1.node_id
-        JOIN caida_itdk.itdk_node_as a2 ON a2.node_id = e2.node_id
-        WHERE e1.node_id = %s
-        ORDER BY peer_node_id, peer_asn
-    """),
-    (
-        Column("peer_node_id", "string"),
-        Column("peer_asn", "int64"),
-        Column("peer_method", "string"),
-    ),
-    "find_peer_asns_for_node",
-)
+# TODO(student): Define _FIND_PEER_ASNS_FOR_NODE = Query(...) with columns
+# (Column("peer_node_id", "string"), Column("peer_asn", "int64"),
+#  Column("peer_method", "string")) and prefix "find_peer_asns_for_node".
 
 
 def find_peer_asns_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvResult:
     """Write the distinct ASNs adjacent to ``node_id`` across its links."""
+    # TODO(student): Define a fixed Query self-joining
+    # caida_itdk.itdk_link_endpoints on link_id (excluding the seed
+    # node_id's own row) and joining caida_itdk.itdk_node_as on the peer
+    # node_id. Bind node_id as the sole %s parameter. Project
+    # peer_node_id, peer_asn, peer_method as DISTINCT rows ordered by
+    # (peer_node_id, peer_asn). An intended reference query:
+    #
+    #     SELECT DISTINCT e2.node_id AS peer_node_id,
+    #            a2.asn AS peer_asn, a2.method AS peer_method
+    #     FROM caida_itdk.itdk_link_endpoints e1
+    #     JOIN caida_itdk.itdk_link_endpoints e2
+    #       ON e2.link_id = e1.link_id AND e2.node_id <> e1.node_id
+    #     JOIN caida_itdk.itdk_node_as a2 ON a2.node_id = e2.node_id
+    #     WHERE e1.node_id = %s
+    #     ORDER BY peer_node_id, peer_asn
+    #
     # DISTINCT collapses the fan-out from a node sitting on more than one
-    # link to the same peer. The INNER join on itdk_node_as excludes peers
-    # with no AS assignment row rather than reporting a null ASN.
-    return executor.execute(_FIND_PEER_ASNS_FOR_NODE, (node_id,))
+    # link to the same peer. Note the INNER join on itdk_node_as excludes
+    # peers with no AS assignment row -- document that tradeoff.
+    raise NotImplementedError("TODO(student): implement find_peer_asns_for_node")
 
 
 # ---------------------------------------------------------------------------
@@ -162,38 +147,40 @@ def find_peer_asns_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvRe
 #      ordered by (node_id, ip NULLS FIRST, hostname)
 # ---------------------------------------------------------------------------
 
-_FIND_HOSTNAMES_FOR_ASN = Query(
-    sql.SQL("""
-        SELECT DISTINCT le.node_id, h.ip, h.hostname
-        FROM caida_itdk.itdk_node_as a
-        JOIN caida_itdk.itdk_link_endpoints le ON le.node_id = a.node_id
-        JOIN caida_itdk.itdk_router_hostnames h
-          ON h.ip = CASE WHEN strpos(le.endpoint_token, ':') > 0
-                         THEN substring(le.endpoint_token FROM strpos(le.endpoint_token, ':') + 1)::inet
-                    END
-        WHERE a.asn = %s
-        ORDER BY le.node_id, h.ip NULLS FIRST, h.hostname
-    """),
-    (
-        Column("node_id", "string"),
-        Column("ip", "inet"),
-        Column("hostname", "string"),
-    ),
-    "find_hostnames_for_asn",
-)
+# TODO(student): Define _FIND_HOSTNAMES_FOR_ASN = Query(...) with columns
+# (Column("node_id", "string"), Column("ip", "inet"),
+#  Column("hostname", "string")) and prefix "find_hostnames_for_asn".
 
 
 def find_hostnames_for_asn(executor: FixedQueryExecutor, asn: int) -> CsvResult:
     """Write the distinct (node_id, ip, hostname) triples observed for one ASN."""
+    # TODO(student): Define a fixed Query starting from the indexed asn
+    # predicate on caida_itdk.itdk_node_as, joining
+    # caida_itdk.itdk_link_endpoints on node_id, then parsing the
+    # embedded interface address out of endpoint_token to join
+    # caida_itdk.itdk_router_hostnames on ip. Bind asn as the sole %s
+    # parameter. Project DISTINCT node_id, ip, hostname ordered by
+    # (node_id, ip NULLS FIRST, hostname). An intended reference query:
+    #
+    #     SELECT DISTINCT le.node_id, h.ip, h.hostname
+    #     FROM caida_itdk.itdk_node_as a
+    #     JOIN caida_itdk.itdk_link_endpoints le ON le.node_id = a.node_id
+    #     JOIN caida_itdk.itdk_router_hostnames h
+    #       ON h.ip = CASE WHEN strpos(le.endpoint_token, ':') > 0
+    #                      THEN substring(le.endpoint_token FROM strpos(le.endpoint_token, ':') + 1)::inet
+    #                 END
+    #     WHERE a.asn = %s
+    #     ORDER BY le.node_id, h.ip NULLS FIRST, h.hostname
+    #
     # Do NOT use split_part(endpoint_token, ':', 2)/NULLIF/::inet here:
     # split_part only returns the text between the FIRST and SECOND
     # colon, which truncates an IPv6 token like "N1:2001:db8:1::1" down
     # to just "2001" and fails the ::inet cast. strpos/substring finds
     # the first colon and takes everything after it, which works for
-    # both IPv4 and IPv6 tokens. The INNER joins exclude interfaces with
-    # no PTR row and bare endpoint_token values with no embedded IP (e.g.
-    # fixture L2's bare "N2" token).
-    return executor.execute(_FIND_HOSTNAMES_FOR_ASN, (asn,))
+    # both IPv4 and IPv6 tokens. Note the INNER joins exclude interfaces
+    # with no PTR row and bare endpoint_token values with no embedded IP
+    # (e.g. fixture L2's bare "N2" token) -- document that tradeoff.
+    raise NotImplementedError("TODO(student): implement find_hostnames_for_asn")
 
 
 # ---------------------------------------------------------------------------
