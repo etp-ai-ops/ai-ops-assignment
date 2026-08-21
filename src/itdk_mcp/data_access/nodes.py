@@ -46,16 +46,22 @@ GEOLOCATION_COLUMNS = (
 # every optional bound is expressed as `(%s IS NULL OR column op %s)` so the
 # SQL text itself never changes shape based on which bounds a caller supplied
 # -- only the bound parameter values do. Each optional bound is therefore
-# bound twice: once for the NULL check, once for the comparison.
+# bound twice: once for the NULL check, once for the comparison. Both
+# occurrences are cast to `double precision` explicitly: a bare `%s IS NULL`
+# gives Postgres no operator context to infer that parameter's type from, so
+# a caller that omits every bound (e.g. `{"country": "US"}` alone, the
+# common case) makes every bound parameter NULL with no inferable type at
+# all, and the query fails with `IndeterminateDatatype` before any row is
+# ever read.
 _SEARCH_NODES_BY_GEOLOCATION = Query(
     sql.SQL("""
         SELECT node_id, continent, country, region, city, latitude, longitude, method
         FROM caida_itdk.itdk_node_geolocation
         WHERE country = %s
-          AND (%s IS NULL OR longitude >= %s)
-          AND (%s IS NULL OR longitude <= %s)
-          AND (%s IS NULL OR latitude >= %s)
-          AND (%s IS NULL OR latitude <= %s)
+          AND (%s::double precision IS NULL OR longitude >= %s::double precision)
+          AND (%s::double precision IS NULL OR longitude <= %s::double precision)
+          AND (%s::double precision IS NULL OR latitude >= %s::double precision)
+          AND (%s::double precision IS NULL OR latitude <= %s::double precision)
         ORDER BY country, longitude NULLS FIRST, latitude NULLS FIRST, node_id
     """),
     GEOLOCATION_COLUMNS,

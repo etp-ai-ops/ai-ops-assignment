@@ -25,7 +25,13 @@ services:
       timeout: 3s
       retries: 20
       start_period: 5s
-    networks: [itdk-internal]
+    # Needs `default` (a normal bridge network), not just `itdk-internal`:
+    # `itdk-internal` is marked internal: true, and a container with no
+    # non-internal network gets no host NAT at all -- Docker silently drops
+    # the `ports:` publish above instead of erroring, so 127.0.0.1:5433 never
+    # actually binds. `itdk-mcp` below needs the same pairing for the same
+    # reason.
+    networks: [default, itdk-internal]
     restart: unless-stopped
 
   itdk-mcp:

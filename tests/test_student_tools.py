@@ -1,12 +1,7 @@
 """Executable specifications for the three student-owned MCP tools.
 
-These tests are expected failures in the distributed starter: none of
-``find_links_for_node``, ``find_peer_asns_for_node``, or
-``find_hostnames_for_asn`` has a schema, a description, or a query body yet
--- see ``src/itdk_mcp/student_tools.py`` for the ``TODO(student)`` markers and
-the intended reference SQL for each. Remove the module-level ``xfail`` marker
-after implementing the tool(s) you build, then add at least one meaningful
-test of your own per tool to this file.
+See ``src/itdk_mcp/student_tools.py`` for the schema, description, and query
+body of each tool.
 """
 
 from __future__ import annotations
@@ -25,10 +20,7 @@ from itdk_mcp.student_tools import (
     find_peer_asns_for_node,
 )
 
-pytestmark = [
-    pytest.mark.student,
-    pytest.mark.xfail(reason="starter TODO(student) implementation", strict=False),
-]
+pytestmark = [pytest.mark.student]
 
 
 class RecordingExecutor:
@@ -146,4 +138,40 @@ def test_find_hostnames_for_asn_query_parses_endpoint_token_and_joins_hostnames(
     assert [column.name for column in query.columns] == ["node_id", "ip", "hostname"]
 
 
-# TODO(student): Add at least one test of your own per tool below this line.
+# ---------------------------------------------------------------------------
+# One test of my own per tool, below this line.
+# ---------------------------------------------------------------------------
+
+
+def test_find_links_for_node_binds_node_id_and_never_interpolates_it() -> None:
+    """Catches an f-string/`.format()` regression splicing node_id into the SQL text."""
+    executor = RecordingExecutor()
+    injection_like = "N1'; DROP TABLE caida_itdk.itdk_link_endpoints; --"
+    find_links_for_node(executor, injection_like)
+    query, parameters = executor.calls[-1]
+    statement = _normalized(query)
+    assert statement.count("%s") == 1
+    assert parameters == (injection_like,)
+    assert injection_like not in statement
+
+
+def test_find_peer_asns_for_node_excludes_the_seed_nodes_own_as_rows() -> None:
+    """Catches a dropped `e2.node_id <> e1.node_id` predicate that would report
+    the seed node's own ASNs as if they were peers."""
+    executor = RecordingExecutor()
+    find_peer_asns_for_node(executor, "N2")
+    query, _parameters = executor.calls[-1]
+    statement = _normalized(query)
+    assert "e2.node_id <> e1.node_id" in statement
+    assert "e1.node_id = %s" in statement
+
+
+def test_find_hostnames_for_asn_uses_inner_joins_not_left_joins() -> None:
+    """Catches a LEFT JOIN swap that would silently report excluded interfaces
+    with a null hostname instead of omitting them, changing the tool's contract."""
+    executor = RecordingExecutor()
+    find_hostnames_for_asn(executor, 64500)
+    query, _parameters = executor.calls[-1]
+    statement = _normalized(query)
+    assert "LEFT JOIN" not in statement
+    assert statement.count("JOIN") == 2

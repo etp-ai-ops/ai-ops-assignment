@@ -1,4 +1,5 @@
 -e .[dev]
-# Used by the notebook's Part 2/3 agent cells (Anthropic Messages API MCP
-# connector). Also declared in pyproject.toml; pinned here for visibility.
-anthropic>=1.0,<2
+# Used by the notebook's Part 2/3 agent cells (OpenAI-compatible client-side
+# tool-calling loop against NRP Nautilus). Also declared in pyproject.toml;
+# pinned here for visibility.
+openai>=1.0,<2

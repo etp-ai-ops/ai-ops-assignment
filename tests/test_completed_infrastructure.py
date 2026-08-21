@@ -107,14 +107,16 @@ def test_unknown_tool_returns_safe_error_schema_is_not_open() -> None:
     assert "raw_sql" not in TOOL_SCHEMAS
 
 
-def test_starter_discovery_surface_has_four_complete_tools() -> None:
-    """The three new student tools are not registered until designed and built."""
-    assert set(TOOL_SCHEMAS) == {
+def test_discovery_surface_always_has_the_four_complete_tools() -> None:
+    """The four provided tools stay registered whether or not student_tools.py
+    has been filled in yet -- this checks a subset, not an exact set, so it
+    holds in both the starter state and after the three new tools are added."""
+    assert {
         "get_link_endpoints",
         "find_nodes_by_asn",
         "search_nodes_by_geolocation",
         "lookup_router_hostnames",
-    }
+    }.issubset(TOOL_SCHEMAS)
 
 
 # ---------------------------------------------------------------------------
