@@ -21,11 +21,17 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "jupyterlab>=4.2,<5",
+  "matplotlib>=3.9,<4",
   "mypy>=1.17,<2",
   "pandas>=2.2,<4",
+  "psycopg2-binary>=2.9,<3",
+  "pycountry>=24.6,<27",
   "pytest>=8.4,<9",
   "pytest-asyncio>=1.1,<2",
+  "python-dotenv>=1.0,<2",
   "ruff>=0.12,<1",
+  "scipy>=1.13,<2",
+  "sqlalchemy>=2.0,<3",
   "types-jsonschema>=4.23,<5",
 ]
 

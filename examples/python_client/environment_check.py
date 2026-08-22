@@ -28,9 +28,9 @@ async def main() -> None:
             "lookup_router_hostnames",
         }
         allowed = required | {
-            "find_links_for_node",
-            "find_peer_asns_for_node",
-            "find_hostnames_for_asn",
+            "get_node_geolocation",
+            "find_router_links_between_asns",
+            "count_nodes_by_asn_and_country",
         }
         if not required.issubset(names) or not set(names).issubset(allowed):
             raise RuntimeError(f"Unexpected tool set: {names!r}")

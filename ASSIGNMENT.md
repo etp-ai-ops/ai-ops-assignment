@@ -4,40 +4,56 @@
 
 Everything you need to know to complete [nids-itdk-mcp.ipynb](nids-itdk-mcp.ipynb) is in this
 one document: the data model, the MCP tool contract, the safe-query rules, the exact contracts
-for the three tools you build, how testing works, and the nine graded questions.
+for the three tools you build, how testing works, and the graded questions.
 
-**Learning objectives.** Explore CAIDA ITDK relations with direct SQL; use a working MCP server
-through an agent; encode new analytical intents as restrictive JSON Schemas plus fixed,
-parameterized, read-only SQL; test those contracts; and separate observed evidence from
-inference when you report findings.
+**Learning objectives.** Explore real CAIDA ITDK relations with direct SQL to answer questions
+about how major networks interconnect and geolocate; use a working MCP server through an agent;
+encode new analytical intents as restrictive JSON Schemas plus fixed, parameterized, read-only
+SQL; test those contracts; and separate observed evidence from inference when you report
+findings.
 
-**Shape of the work.** Three parts, nine questions:
+**Shape of the work.** Three parts:
 
 | Part | What you do | Access path | Questions |
 | --- | --- | --- | --- |
-| 1 | Explore the four relations with hand-written SQL | direct read-only SQL, local fixture only | Q1–Q3 |
-| 2 | Use the 4 provided tools through an agent, in the notebook | Anthropic Messages API + MCP connector | Q4–Q5 |
-| 3 | Build 3 new tools, then investigate with all 7 | your code + the same agent cells | Q6–Q9 |
+| 1 | Investigate real ASes' interconnection and geolocation with hand-written SQL | direct read-only SQL against the real teaching snapshot | Q1–Q3 |
+| 2 | Use the 4 provided tools through an agent, in the notebook | a client-side tool-calling loop against an OpenAI-compatible endpoint + MCP | Q4–Q5 |
+| 3 | Build 3 new general-purpose tools, then investigate with all 7 | your code + the same agent cells | Q6–Q9 |
+
+Part 1 works with real, full-scale data and asks harder, open-ended analytical questions --
+you have the full flexibility of hand-written SQL there. Parts 2 and 3 restrict you to the small,
+fixed MCP tool vocabulary described below, so their questions are deliberately narrower in scope;
+the payoff is that the same three general-purpose tools you build in Part 3 can be recombined to
+answer many different questions, not just one each.
 
 ---
 
 ## 1. The data
 
-### Teaching snapshot vs. synthetic fixture
+### Real teaching snapshot vs. synthetic fixture
 
-Graded analysis is meant to run against a frozen, instructor-prepared **ITDK teaching snapshot**.
-Its release identifier, manifest, checksums, and seeds are deployment decisions your instructor
-supplies; record the snapshot ID in the notebook so a reader knows which data your answers describe.
+Graded analysis runs against a real, instructor-provided **ITDK teaching snapshot**: a read-only
+Postgres role on the shared CAIDA ITDK database, restricted to `midar-iff-snmp`-derived
+router-to-router topology (see the "Dataset scope" note your instructor distributes with the
+connection details). This is real measurement data covering millions of router-level links and
+AS assignments -- not an invented example. `db_credentials.env` holds the DSN for Part 1's direct
+connection; the MCP server's own `DATABASE_URL` (set by whoever runs `docker compose`, not by
+you) points the same read-only role at Parts 2 and 3. Record the snapshot's release identifier in
+the notebook so a reader knows which data your answers describe.
 
-Until an instructor publishes one, this repository ships the deterministic synthetic **fixture**
+This repository also ships a small deterministic synthetic **fixture**
 `nids-itdk-mcp-synthetic-v1` (see [data/README.md](data/README.md)): six invented nodes, six links
 (including multi-endpoint ones), eight AS-assignment rows, six geolocation rows, eleven hostname
-rows, private-use ASNs, reserved documentation IP ranges, and `.test` hostnames. Fixture values
-teach behaviour and edge cases. **They are not measurements of the public Internet** — say so
-explicitly in every answer that cites them.
+rows, private-use ASNs, reserved documentation IP ranges, and `.test` hostnames. **The fixture
+exists only so `uv run pytest` has something deterministic to run against** -- it is not the
+target of any graded question, and it is not a measurement of the public Internet. Do not answer
+Q1–Q9 from the fixture; use it only while iterating on `student_tools.py` before you point your
+tests or notebook at the real snapshot.
 
-ITDK data may be access-controlled. Do not commit database contents, generated CSVs, or snapshot
-rows unless your course's data terms allow it.
+ITDK data is access-controlled real measurement data about real networks. Do not commit database
+contents, generated CSVs, snapshot rows, or the real read-only credentials themselves -- they stay
+in the git-ignored `db_credentials.env` / `itdk_mcp_credentials.env` files only, and are handed
+out by your instructor the same way a prior CAIDA assignment's `db_credentials.env` was.
 
 ### From measurements to router-level topology
 
@@ -186,9 +202,9 @@ failures produce `INTERNAL_ERROR`. Neither exposes SQL, stack traces, or credent
 | `find_nodes_by_asn` | complete | `node_id`, `asn`, `method` | `node_id` |
 | `search_nodes_by_geolocation` | complete | `node_id`, `continent`, `country`, `region`, `city`, `latitude`, `longitude`, `method` | `country`, longitude/latitude nulls first, `node_id` |
 | `lookup_router_hostnames` | complete | `ip`, `hostname` | by IP: `ip`, hostname nulls first; by name/prefix: `hostname`, `ip` |
-| `find_links_for_node` | **you build** | `link_id`, `endpoint_ordinal`, `endpoint_token`, `node_id` | `link_id`, `endpoint_ordinal` |
-| `find_peer_asns_for_node` | **you build** | `peer_node_id`, `peer_asn`, `peer_method` (DISTINCT) | `peer_node_id`, `peer_asn` |
-| `find_hostnames_for_asn` | **you build** | `node_id`, `ip`, `hostname` (DISTINCT) | `node_id`, `ip` nulls first, `hostname` |
+| `get_node_geolocation` | **you build** | `node_id`, `continent`, `country`, `region`, `city`, `latitude`, `longitude`, `method` | `node_id` |
+| `find_router_links_between_asns` | **you build** | `link_id`, `node_a`, `node_b` | `link_id`, `node_a`, `node_b` |
+| `count_nodes_by_asn_and_country` | **you build** | `country`, `node_count` (DISTINCT node_id per country) | `node_count` DESC, `country` |
 
 These projections and orderings are part of the public contract. A tool must not accept
 caller-chosen tables, columns, joins, ordering, SQL fragments, limits, or cursors.
@@ -212,9 +228,9 @@ caller-chosen tables, columns, joins, ordering, SQL fragments, limits, or cursor
    > caller-chosen tables or columns.
 3. **Project and order explicitly.** No `SELECT *`. Relational results have no order without
    `ORDER BY`; when nullable columns participate, state `NULLS FIRST`/`NULLS LAST`.
-4. **Start from an indexed predicate.** `asn` for AS lookups and `find_hostnames_for_asn`;
-   `country` (first in the composite index) for geolocation; `link_id` for endpoints; `node_id`
-   for `find_links_for_node` and the `find_peer_asns_for_node` self-join.
+4. **Start from an indexed predicate.** `asn` for AS lookups, `find_router_links_between_asns`,
+   and `count_nodes_by_asn_and_country`; `country` (first in the composite index) for geolocation;
+   `link_id` for endpoints; `node_id` (primary key) for `get_node_geolocation`.
 5. **Validate numeric bounds twice.** Schema expresses ranges (longitude `[-180,180]`, latitude
    `[-90,90]`); the application must also reject non-finite values and inverted min/max pairs.
 6. **Make selectors mutually exclusive.** Hostname lookup takes exactly one of `ip`,
@@ -241,91 +257,102 @@ All three new tools live in **one file**: `src/itdk_mcp/student_tools.py`. It ho
 - `STUDENT_TOOL_SCHEMAS` — the three restrictive JSON Schemas (reuse the `IDENTIFIER_SCHEMA` and
   `ASN_SCHEMA` shapes already defined at the top of that file);
 - `STUDENT_TOOL_DESCRIPTIONS` — one precise description per tool;
-- the three `Query` objects plus `find_links_for_node(executor, node_id)`,
-  `find_peer_asns_for_node(executor, node_id)`, `find_hostnames_for_asn(executor, asn)`; and
+- the three `Query` objects plus `get_node_geolocation(executor, node_id)`,
+  `find_router_links_between_asns(executor, asn_a, asn_b)`,
+  `count_nodes_by_asn_and_country(executor, asn)`; and
 - a complete `dispatch(executor, name, arguments)` you do not need to edit.
 
 `mcp_tools.py` merges your schemas and descriptions into `TOOL_SCHEMAS`/`TOOL_DESCRIPTIONS` and
 routes any call naming one of the three through `dispatch`, so a tool becomes discoverable and
 callable as soon as you fill in the file. You do not edit the completed server code.
 
-### Contract 1 — `find_links_for_node`
+These three tools are deliberately **general-purpose**, not single-question probes: each takes
+only a `node_id` or one/two `asn` values and returns raw rows, so an agent (or your own notebook
+code) combines them to answer many different questions -- which node sits where, which two ASes
+share a router-level link, how one AS's routers are spread across countries -- rather than each
+tool answering exactly one fixed question. Part 3's Q8/Q9 ask you to use that generality directly.
 
-Args `node_id`; returns `link_id, endpoint_ordinal, endpoint_token, node_id`; order
-`link_id, endpoint_ordinal`; seed `node_id` (indexed).
+### Contract 1 — `get_node_geolocation`
+
+Args `node_id`; returns zero or one row of `node_id, continent, country, region, city, latitude,
+longitude, method`; order `node_id`; seed `node_id` (primary key of
+`itdk_node_geolocation`).
 
 ```sql
-SELECT link_id, endpoint_ordinal, endpoint_token, node_id
-FROM caida_itdk.itdk_link_endpoints
+SELECT node_id, continent, country, region, city, latitude, longitude, method
+FROM caida_itdk.itdk_node_geolocation
 WHERE node_id = %s
-ORDER BY link_id, endpoint_ordinal
+ORDER BY node_id
 ```
 
-Filtering endpoint rows by one node answers "which endpoint records contain this node?" — it does
-*not* return every endpoint on those links. To see a node's neighbours at endpoint level, feed the
-returned `link_id`s to `get_link_endpoints`. That two-step design keeps each tool's meaning precise.
+None of the four provided tools can answer "where is this specific node located" --
+`search_nodes_by_geolocation` only takes a `country` (plus optional coordinate bounds), never a
+`node_id`. This tool fills exactly that gap: given a `node_id` returned by `find_nodes_by_asn`,
+`get_link_endpoints`, or `find_router_links_between_asns`, look up its one geolocation annotation.
+Zero rows means "this snapshot has no geolocation annotation for this node" -- not an error, and
+not proof the router doesn't exist.
 
-### Contract 2 — `find_peer_asns_for_node`
+### Contract 2 — `find_router_links_between_asns`
 
-Args `node_id`; returns DISTINCT `peer_node_id, peer_asn, peer_method`; order
-`peer_node_id, peer_asn`; seed `node_id` via a self-join on `link_id`.
+Args `asn_a`, `asn_b`; returns `link_id, node_a, node_b`; order `link_id, node_a, node_b`; seed
+`asn` (indexed) via two CTEs, then a self-join on `link_id`.
 
 ```sql
-SELECT DISTINCT e2.node_id AS peer_node_id, a2.asn AS peer_asn, a2.method AS peer_method
+WITH a_nodes AS (
+    SELECT node_id FROM caida_itdk.itdk_node_as WHERE asn = %s
+),
+b_nodes AS (
+    SELECT node_id FROM caida_itdk.itdk_node_as WHERE asn = %s
+)
+SELECT e1.link_id, e1.node_id AS node_a, e2.node_id AS node_b
 FROM caida_itdk.itdk_link_endpoints e1
+JOIN a_nodes ON a_nodes.node_id = e1.node_id
 JOIN caida_itdk.itdk_link_endpoints e2
   ON e2.link_id = e1.link_id AND e2.node_id <> e1.node_id
-JOIN caida_itdk.itdk_node_as a2 ON a2.node_id = e2.node_id
-WHERE e1.node_id = %s
-ORDER BY peer_node_id, peer_asn
+JOIN b_nodes ON b_nodes.node_id = e2.node_id
+ORDER BY e1.link_id, node_a, node_b
 ```
 
-`DISTINCT` collapses the fan-out created when the seed node shares more than one link with the
-same peer.
+This is the general form of "find border routers between AS *X* and AS *Y*": pass any two ASNs
+and get back every router-level link with one endpoint's node assigned to `asn_a` and the other's
+to `asn_b`. Part 1's Q1 asks the identical question by hand for Level3/Netflix; here it becomes a
+reusable tool an agent can call for any AS pair -- including the 18-AS sweep in Part 1's Q3, or a
+smaller version of it in Part 3.
 
-> **INNER-join tradeoff.** The join to `itdk_node_as` is an **INNER** join, so a peer node with no
-> AS-assignment row is excluded entirely — it does not appear as `peer_asn = NULL`. Document that
-> limitation in your tool *description*, not only in your notebook answer.
+> **Design choice, not a bug: passing `asn_a == asn_b` is allowed.** It returns links where *both*
+> endpoints belong to the same AS -- that AS's own intra-network router-level mesh, a legitimate
+> and distinct question, not an error. Say so in the tool description so a caller isn't surprised.
 
-### Contract 3 — `find_hostnames_for_asn`
+> **What this tool does not dedupe.** A link with more than two endpoints (a "hyperlink", see
+> §1) can contribute more than one `(node_a, node_b)` row if several of its endpoints belong to
+> the two ASes in question -- each such pair is a real, distinct adjacency recorded on that link,
+> not a duplicate. Do not silently drop rows from a link with unusual endpoint counts; flag them.
 
-Args `asn` (same tightened integer schema as `find_nodes_by_asn`); returns DISTINCT
-`node_id, ip, hostname`; order `node_id, ip NULLS FIRST, hostname`; seed `asn` (indexed).
+### Contract 3 — `count_nodes_by_asn_and_country`
+
+Args `asn` (same tightened integer schema as `find_nodes_by_asn`); returns `country, node_count`;
+order `node_count DESC, country`; seed `asn` (indexed).
 
 ```sql
-SELECT DISTINCT le.node_id, h.ip, h.hostname
+SELECT g.country, COUNT(DISTINCT a.node_id) AS node_count
 FROM caida_itdk.itdk_node_as a
-JOIN caida_itdk.itdk_link_endpoints le ON le.node_id = a.node_id
-JOIN caida_itdk.itdk_router_hostnames h
-  ON h.ip = CASE WHEN strpos(le.endpoint_token, ':') > 0
-                 THEN substring(le.endpoint_token FROM strpos(le.endpoint_token, ':') + 1)::inet
-            END
+JOIN caida_itdk.itdk_node_geolocation g ON g.node_id = a.node_id
 WHERE a.asn = %s
-ORDER BY le.node_id, h.ip NULLS FIRST, h.hostname
+GROUP BY g.country
+ORDER BY node_count DESC, country
 ```
 
-- `strpos(endpoint_token, ':')` finds the *first* colon; `substring(... FROM strpos(...) + 1)`
-  takes everything after it, so the extracted text is the whole remainder of the token.
-- The `CASE` yields `NULL` (not an error) for a bare token with no colon, like `L2`'s `N2`, so
-  `::inet` never runs on an empty string.
-- `::inet` casts the extracted text to Postgres's IP type for comparison with `h.ip`.
+This is the general form of Part 1's Q2 country-concentration table for one AS: how many of its
+geolocated routers sit in each country, busiest first. Calling it once per AS and comparing the
+two result tables in pandas (as Part 1's `_by_country` helper does directly in SQL) reproduces
+the China-Unicom-vs-Level3 comparison through the MCP tool layer instead.
 
-> **Gotcha — do not use `split_part` here.** `NULLIF(split_part(endpoint_token, ':', 2), '')::inet`
-> is right when a token has *at most one* colon (`N1:192.0.2.1`) but silently breaks on IPv6:
-> `split_part('N1:2001:db8:1::1', ':', 2)` returns `'2001'` — the text between the first and second
-> colon — which then fails the `::inet` cast. `strpos`/`substring` split on the *position* of the
-> first colon, so they handle any number of embedded colons. The lesson generalizes: don't assume a
-> delimiter appears exactly once because your first examples only had one.
-
-> **INNER-join tradeoff.** Both joins reaching `itdk_router_hostnames` are INNER joins, so an
-> interface with no PTR record *and* a bare endpoint token with no embedded IP are excluded rather
-> than returned with a null `hostname`. This tool answers "which hostnames are we confident belong
-> to a node in this ASN?", not "does every node in this ASN have an interface?".
-
-For ASN `64500` (nodes `N1`, `N2`) the fixture returns four rows: `N1`/`192.0.2.1`/
-`edge-la.example.test`, `N1`/`2001:db8:1::1`/`v6-edge-la.example.test`, `N2`/`192.0.2.2`/
-`edge-sea.example.test`, and `N2`/`2001:db8:2::2`/`v6-edge-sea.example.test` (from `N2`'s `L6`
-endpoint). `L2`'s bare `N2` token is correctly absent, dropped by the INNER join.
+> **INNER-join tradeoff.** The join to `itdk_node_geolocation` is an INNER join, so a node with an
+> AS assignment but no geolocation row is excluded from every country's count -- it does not
+> silently attribute to some fallback country. This tool answers "how is this AS's *geolocated*
+> footprint distributed", not "how many routers does this AS have in total"; compare the sum of
+> `node_count` here against `find_nodes_by_asn`'s `row_count` to see how much coverage that INNER
+> join drops for a given AS.
 
 ---
 
@@ -365,33 +392,32 @@ meaningful test of your own per tool** to that file (see Q6).
 
 ## 6. Calling the tools from an agent, in the notebook
 
-Parts 2 and 3 use the Anthropic Messages API's **remote MCP connector**: the model discovers and
-calls your MCP tools server-side, inside a single API call, from a plain Python cell. No separate
-agent process or desktop app is involved. The notebook's third "Complete setup" cell defines
-`call_agent_with_mcp_tools(prompt)` for you; the shape it uses is:
+Parts 2 and 3 drive a real agent from this notebook using an **OpenAI-compatible endpoint** (NRP
+Nautilus by default), so you are not limited by needing your own Claude subscription or API key.
+That endpoint has no equivalent of a server-side remote-MCP connector, so the notebook's third
+"Complete setup" cell implements the loop itself: it sends the model a standard OpenAI-style
+`tools` list built from `list_itdk_tools()`, executes any `tool_calls` the model requests against
+this MCP server directly (via `call_itdk_raw`), feeds the results back as `role: "tool"` messages,
+and repeats until the model stops asking for tools. There is no separate agent process and no
+desktop app -- and, unlike a server-side connector, the model itself never needs network access to
+the MCP server, only this notebook process does.
 
-```python
-response = client.beta.messages.create(
-    model="claude-opus-5",
-    max_tokens=4096,
-    messages=[{"role": "user", "content": prompt}],
-    mcp_servers=[{
-        "type": "url",
-        "url": PUBLIC_MCP_URL,            # https:// SSE endpoint, reachable from Anthropic
-        "name": "itdk-mcp",
-        "authorization_token": MASTER_KEY,
-    }],
-    tools=[{"type": "mcp_toolset", "mcp_server_name": "itdk-mcp"}],
-    betas=["mcp-client-2025-11-20"],
-)
-```
+`await call_agent_with_mcp_tools(prompt)` returns `(trace, answer)`: `trace` is one record per
+tool call / tool result pair -- built from the same `mcp_tool_use`-shaped call and
+`mcp_tool_result`-shaped outcome you would audit from a server-side connector -- and `answer` is
+the model's final text. Two things this needs, both set in `itdk_mcp_credentials.env`:
+`OPENAI_API_KEY` (your NRP Nautilus key or another OpenAI-compatible provider's) and
+`OPENAI_BASE_URL` (for NRP Nautilus, `https://ellm.nrp-nautilus.io/v1`). Never paste either into
+the notebook or commit them.
 
-Both halves are required: an `mcp_servers` entry *and* a matching `mcp_toolset` in `tools`. The
-response content contains `mcp_tool_use` blocks (`name`, `server_name`, `input`) and
-`mcp_tool_result` blocks (`tool_use_id`, `is_error`, `content`) — that pair is the tool-call trace
-you record and audit. Because the connector runs at Anthropic, `url` must be publicly reachable
-over HTTPS; set `ITDK_PUBLIC_MCP_URL` to whatever tunnel or hosted URL your course deployment
-provides, and put your key in `ANTHROPIC_API_KEY` (never commit it).
+Model choice matters here more than it would with a single frontier model: NRP Nautilus's catalog
+(`GET {OPENAI_BASE_URL}/models`) includes several open-weight models of noticeably different
+tool-calling reliability. In testing, `kimi` completed both fixed prompts cleanly in a couple of
+tool calls each; a weaker model can go off track -- for example, guessing at countries one at a
+time when a question requires a lookup no tool provides, or exhausting its token budget mid-answer
+without ever emitting a final response. That is not a bug in your setup; it is exactly the kind of
+agent behaviour Q5 asks you to audit. Set `ITDK_AGENT_MODEL` to whichever model you use, and note
+which one you picked alongside your trace.
 
 **An agent cannot make weak evidence stronger.** Treat its prose as a hypothesis to audit. A
 defensible answer records: the exact tool name and arguments; the returned artifact and row count;
@@ -401,170 +427,220 @@ judgement, not to how convincing the agent's wording is.
 
 ---
 
-## Part 1 — Explore the ITDK relations with direct SQL (Q1–Q3)
+## Part 1 — Investigate real ASes with direct SQL (Q1–Q3)
 
-Part 1 is the **only** part that touches the database directly. Docker Compose publishes the
-fixture PostgreSQL service on `127.0.0.1:${ITDK_DB_PORT:-5433}` using the read-only `itdk_reader`
-role (`SELECT` on the four relations, `default_transaction_read_only = on`); `db_credentials.env`
-holds the DSN. **This path reaches only the local synthetic fixture, never a graded snapshot**, and
-it is never a substitute for MCP access in Parts 2 and 3.
+Part 1 is the **only** part that touches the database directly. It connects straight to the real
+teaching snapshot with the read-only role your instructor hands out (`db_credentials.env` holds
+the DSN) -- **this path is never a substitute for MCP access in Parts 2 and 3**, and its full
+flexibility is precisely why it can ask harder questions than Parts 2/3 can.
 
 Use `pandas.read_sql` with bound parameters (`%(name)s` plus `params=`), not f-strings — the same
 habit Part 3 requires of your tools.
 
-### Q1 — Identifier roles and the join key
+### Q1 — Border routers between Level3 (AS3356) and Netflix (AS2906)
 
-Run the endpoint rows for `L1`: `N1` at ordinal 0 with token `N1:192.0.2.1`, `N2` at ordinal 1 with
-token `N2:192.0.2.2`. Annotate all four columns:
+A router-level link with one endpoint's node assigned to AS3356 (Level3, a transit ISP) and the
+other to AS2906 (Netflix, a content provider) is a **border router pair**: the physical point
+where one AS hands traffic to the other. Build the set with a CTE per AS (each already enriched
+with geolocation) joined on `link_id`:
 
-```text
-link_id           -> groups endpoint rows into one inferred adjacency/hyperlink
-endpoint_ordinal  -> distinguishes positions inside that link, not direction or path order
-endpoint_token    -> preserves source endpoint encoding; sometimes carries an IP, sometimes not
-node_id           -> normalized router identifier used across every router-level relation
+```sql
+WITH level3_nodes AS (
+    SELECT le.link_id, le.node_id AS l3_node_id,
+           g.latitude AS l3_lat, g.longitude AS l3_lon, g.city AS l3_city, g.country AS l3_country
+    FROM caida_itdk.itdk_link_endpoints le
+    JOIN caida_itdk.itdk_node_as na ON le.node_id = na.node_id
+    JOIN caida_itdk.itdk_node_geolocation g ON le.node_id = g.node_id
+    WHERE na.asn = 3356
+),
+netflix_nodes AS (
+    -- student_code_start: identical shape, filtered to asn = 2906 and aliased nf_*
+    -- student_code_end
+)
+SELECT l3.link_id, l3.l3_node_id, l3.l3_lat, l3.l3_lon, l3.l3_city, l3.l3_country,
+       n.nf_node_id, n.nf_lat, n.nf_lon, n.nf_city, n.nf_country
+FROM level3_nodes l3
+JOIN netflix_nodes n ON l3.link_id = n.link_id;
 ```
 
-Then look at `L2`: ordinal 0 has the bare token `N2` with no embedded IP, ordinal 1 has
-`N3:198.51.100.3`. If you joined `itdk_node_as` on `endpoint_token` instead of `node_id`, the bare
-`N2` token would match *by coincidence*, while every token carrying a prefix, punctuation, or no
-colon would fail to join or join to the wrong thing — a silently wrong answer, which is worse than
-an error.
+This returns roughly 130 links with geolocation on both ends. Compute the great-circle distance
+between each link's two endpoints with the haversine formula, and classify each link as
+**geographically adjacent** (`<= 40 km`) or not. Because latency roughly tracks physical distance,
+legitimate peering links cluster in the same metro area; an implausibly large distance is more
+likely a geolocation error than a genuine transoceanic router adjacency (a Hoiho-geolocated
+endpoint paired with a Maxmind-geolocated one is a common source of that error). Then, restricting
+to the adjacent links only, group by city/country and count distinct links per location to find
+the distinct peering locations.
 
-> **Q1** Using concrete rows you returned, explain the roles of `link_id`, `endpoint_ordinal`,
-> `endpoint_token`, and `node_id`. Which is the normal key for relating an endpoint to AS or
-> geolocation rows, and what goes wrong when `endpoint_token` is used as though it were that key?
-> Cite the two row counts from the correct and incorrect joins.
+> **Q1** (a) How many links are adjacent vs. non-adjacent? List the non-adjacent link IDs. (b) For
+> adjacent links only, present the `city, country, link_count` peering-location table. (c) One
+> paragraph: why would an ISP and a content provider prefer to peer in the same metro area, and are
+> the non-adjacent outliers real long-haul links or likely geolocation artifacts?
 
-### Q2 — Multiplicity across relations
+### Q2 — Router concentration: China Unicom (AS4837) vs. Level3 (AS3356)
 
-Name the grain first: one `itdk_link_endpoints` row is one endpoint position of one link; one
-`itdk_node_as` row is one `(node_id, asn)` assignment; one `itdk_node_geolocation` row is one
-location per node.
+Count each AS's geolocated routers per country in one round trip:
 
-Two different one-to-many patterns are visible in the fixture. `N2` participates in three
-link-endpoint rows (`L1`, `L2`, `L6`) *and* carries two AS-assignment rows (`64500` via `bdrmapit`,
-`64501` via `alias-overlap`). Joining the two for `N2` without deduplicating yields `3 × 2 = 6`
-rows, none of which is "the" AS for `N2`.
+```sql
+SELECT na.asn, g.country, COUNT(DISTINCT na.node_id) AS node_count
+FROM caida_itdk.itdk_node_as na
+JOIN caida_itdk.itdk_node_geolocation g ON g.node_id = na.node_id
+WHERE na.asn IN (4837, 3356)
+GROUP BY na.asn, g.country
+```
 
-> **Q2** Show two different one-to-many patterns using your own counts. Why would flattening all
-> annotations into one assumed row per router either lose information or multiply rows? Name the
-> specific fixture nodes and links that break the assumption.
+For each ASN, add a `rank` (0 = most routers, ties share a rank, the next rank skips the tied
+count -- `RANK()`-style, not `DENSE_RANK()`) and a `pct` (that country's share of the AS's own
+geolocated total). Build a `comparison` table with columns
+`country_name, cu_num_router, cu_rank, cu_pct, l3_pct, l3_rank, l3_num_routers` for China Unicom's
+top 10 countries, with Level3's figures for those same countries alongside (use `pycountry` to map
+the two-letter code to a country name; a country with zero Level3 routers gets `l3_pct = 0` and a
+rank below every ranked country). As of this writing, China Unicom has roughly 49.4k geolocated
+routers across 21 countries (about 98% of them in `CN`); Level3 has roughly 29.6k across 53
+countries (its largest single share, in `US`, is about 89%) -- expect numbers in that neighborhood,
+not identical to the letter, since the snapshot may have moved since this was written.
 
-### Q3 — Provenance and missing evidence
+Then, for China Unicom's **US West Coast** routers only (`asn = 4837`, `country = 'US'`,
+`longitude < -115`), find every other AS that shares a router-level link with one of them, using a
+self-join on `link_id` plus a `LEFT JOIN` to `itdk_router_hostnames` for the peer interface's
+hostname where one exists. Build a `city, total, <peer ASN columns...>` table: `total` is the
+count of *distinct* West Coast China Unicom routers with at least one peer in that city (not the
+sum of the peer columns -- a router with several peers is one router, counted once), and each peer
+column is the count of distinct routers connecting to that peer ASN in that city.
 
-`method` on `itdk_node_as` and `itdk_node_geolocation` records *how* a row was produced —
-`bdrmapit`, `alias-overlap`, `maxmind`, `hostname-hint`, `country-only`. Keep it in every evidence
-table: a value produced by an inference method is "assigned" or "inferred", never "proved". Note
-also that a hostname-derived location and a hostname that appears to confirm it are **not**
-independent evidence.
+> **Q2** (a) Compare China Unicom's and Level3's country concentration; what business-model
+> difference explains it? (b) Which AS has more total routers, and why? (c) Present the West Coast
+> peering table. (d) One paragraph: why would China Unicom peer with the **same** AS more than once
+> in one city, and why with the same AS across **different** cities?
 
-`N6`'s geolocation row returns `country = 'AU'`, `method = 'country-only'`, and null `region`,
-`city`, `latitude`, `longitude`. The justified conclusion is only that this snapshot's process
-produced nothing more precise for `N6`; the unjustified one is that `N6` has no more precise
-real-world location, or that you may guess a city from the country. Other good missing-value cases:
-`L2`'s bare `N2` token, or an IP such as `198.51.100.4` with no PTR row. Distinguish three states —
-a query with no matching rows, a returned row with a null field, and a failed query. Only the last
-is an execution problem.
+### Q3 — Interconnection structure across 18 major ASes
 
-> **Q3** What do the AS-assignment and geolocation `method` values communicate about how each row
-> was produced? Contrast one AS method with one geolocation method. Then identify one missing value
-> in the fixture (PTR, location detail, or interface encoding), state exactly what you can conclude
-> from it and what tempting conclusion is *not* justified, and say which of these disappear
-> silently under an INNER JOIN.
+Using the 18-AS list (11 transit ISPs, 2 CDNs, 5 content networks -- see the notebook for the
+exact table with ASN, name, and category code), count router-level links between every pair:
+
+```sql
+WITH le_as AS (
+    SELECT DISTINCT le.link_id, na.asn
+    FROM caida_itdk.itdk_link_endpoints le
+    JOIN caida_itdk.itdk_node_as na ON na.node_id = le.node_id
+    WHERE na.asn IN (174, 701, 1299, 3257, 3491, 5511, 6453, 3320, 6461, 6762, 6830,
+                      12956, 15133, 20940, 714, 2906, 13335, 15169)
+)
+SELECT a.asn AS asn1, b.asn AS asn2, COUNT(*) AS link_count
+FROM le_as a
+JOIN le_as b ON b.link_id = a.link_id AND a.asn < b.asn
+GROUP BY a.asn, b.asn
+ORDER BY link_count DESC
+```
+
+`DISTINCT` in the CTE collapses the grain to one row per `(link, AS)` before the self-join, so a
+link with several endpoints in the same AS does not fan out; `a.asn < b.asn` keeps each unordered
+pair counted once. Render the resulting matrix as a heatmap (`imshow` with a log color scale reads
+better than a linear one, given the wide range of link counts). Reordering the 18 ASes so
+heavily-interconnected ones sit next to each other -- a linear-arrangement/seriation problem -- 
+makes the structure easier to read than the arbitrary category/ASN order; the notebook uses
+`scipy.optimize.quadratic_assignment` with several randomized restarts for this (a single
+default-start call can land in a mediocre local optimum).
+
+> **Q3** In two paragraphs: which AS categories are most/least interconnected, which ASes (if any)
+> don't match their category's typical behavior, and what does that say about how the Internet is
+> structured economically?
 
 ---
 
 ## Part 2 — Use the four provided tools through an agent (Q4–Q5)
 
 The four provided tools ship complete; nothing needs implementing before you can use them. The
-notebook runs **two fixed prompts** verbatim through `call_agent_with_mcp_tools`, using the
-documented fixture seeds (ASN `64500`, countries `US` and `DE`, node `N1`). Run the cells, then
-audit what came back.
+notebook runs **two fixed prompts** verbatim through `call_agent_with_mcp_tools`, seeded on
+**AS15133 (Edgecast)** -- a real AS with exactly two geolocated router nodes in this snapshot, small
+enough that every claim in the trace is checkable by hand. Run the cells, then audit what came back.
 
-- **Prompt A (ASN → geolocation):** "Which router nodes does this snapshot assign to ASN 64500,
+- **Prompt A (ASN → geolocation):** "Which router nodes does this snapshot assign to ASN 15133,
   where is each of those nodes geolocated, and which inference method produced each AS assignment
   and each location? Use the ITDK MCP tools; report the exact tool calls, arguments, and row counts
   you used."
-- **Prompt B (hostname ↔ geolocation provenance):** "For node N1, find the PTR hostname of its
-  known IPv4 interface 192.0.2.1 and compare any location hint embedded in that hostname against
-  the recorded geolocation for nodes in the US and DE. State which method produced each location
-  and whether the hostname is independent evidence."
+- **Prompt B (hostname ↔ geolocation provenance):** "For the router nodes assigned to ASN 15133,
+  find the PTR hostname of each node's known interface and compare any location hint embedded in
+  that hostname against the recorded geolocation for nodes in the US. State which method produced
+  each location and whether the hostname is independent evidence."
 
-For each run, keep the trace (`mcp_tool_use` name + arguments, `mcp_tool_result` outcome) and the
-final answer with your submission — they are the artifacts Q4 and Q5 grade.
+**Use `kimi` as `ITDK_AGENT_MODEL`** (the default in `itdk_mcp_credentials.env.example`, and set
+`temperature=0` in `call_agent_with_mcp_tools`, already the cell's default) -- it was the most
+reliable tool-caller of NRP Nautilus's catalog in testing; a weaker model is more likely to stall
+or guess rather than answer cleanly, which makes Q4/Q5 harder to answer, not more interesting.
 
-> **Q4** Pick one of the two fixed prompts. Verify the agent's tool-call trace and every factual
-> claim it made against your own repeat calls: re-run the calls that matter through
-> `call_itdk_tool`, load the CSVs with `load_tool_csv`, and re-derive each number yourself. Report
-> which claims held, which did not, and the exact evidence.
+There is a fixed, guaranteed gap regardless of model: **none of the four provided tools can look up
+a node's location directly by `node_id`** -- `search_nodes_by_geolocation` only takes a `country`.
+Every run must confront this gap one way or another; that is Q5's anchor finding.
 
-> **Q5** Critique the agent's *process* across both runs, not just its answers. Identify at least
-> one redundant call (same tool and arguments when the result was already available) or one
-> unverified assumption (a location, relationship, or completeness claim no tool result
-> established), and say what a more careful trace would have looked like. What would you change
-> about the tool descriptions so a future agent makes fewer of those mistakes?
+For each run, keep the trace (`mcp_tool_use`-shaped call + `mcp_tool_result`-shaped outcome) and
+the final answer with your submission — they are the artifacts Q4 and Q5 grade.
+
+> **Q4** Pick one fixed prompt. Re-run its tool calls yourself through `call_itdk_tool` /
+> `load_tool_csv` and re-derive each number the agent reported. List which of its claims held, which
+> didn't, and the evidence for each.
+
+> **Q5** Explain how the agent handled the missing node-location lookup (guessed at countries,
+> stated it couldn't determine location, or something else) -- quote the trace. Then name one more
+> issue from either run: a redundant call, or a claim no tool result actually supports. What one
+> change to the tool descriptions (or one new tool) would have prevented it?
 
 ---
 
-## Part 3 — Build three new tools, then investigate with all seven (Q6–Q9)
+## Part 3 — Build three new general-purpose tools, then investigate with all seven (Q6–Q9)
 
 Implement the three contracts from §4 in `src/itdk_mcp/student_tools.py`, add tests, then re-run
-the same in-notebook agent pattern against all seven tools.
+the same in-notebook agent pattern against all seven tools. Every question below stays seeded on
+small, real ASes so every returned row is small enough to check by hand.
 
 ### Q6 — Trace one new tool end to end
 
-> **Q6** Give the advertised contract for `find_links_for_node` (discovered name, description,
-> input schema, output schema) and show one valid call and one invalid call. Which layer rejects
-> the invalid call, and how do you know the invalid arguments never reached the query? Do the
-> returned rows match what you saw in SQL in Part 1? Finally, name in one line the most useful test
-> you added for your three tools and the concrete failure it would catch.
+> **Q6** Show `get_node_geolocation`'s discovered contract (name, description, input/output schema),
+> one valid call (a node from `find_nodes_by_asn(15133)`), and one invalid call. Which layer rejects
+> the invalid call, and how do you know it never reached the query? Does the valid call's row match
+> your Part 1 SQL for that node? Name your single most useful new test and the bug it would catch.
 
 You must add at least one meaningful test per tool to `tests/test_student_tools.py` and remove the
 module-level `xfail` marker once the tools are implemented.
 
-### Q7 — The `find_peer_asns_for_node` tradeoffs
+### Q7 — The `find_router_links_between_asns` tradeoffs
 
-> **Q7** Explain the three design choices in `find_peer_asns_for_node`: the self-join on `link_id`,
-> the `DISTINCT`, and the INNER join to `itdk_node_as`. What does each buy and what does each cost?
-> Name the concrete rows in your result that demonstrate the fan-out `DISTINCT` collapses (not
-> every node shows this — you may need to try more than one seed). Then check whether the INNER
-> join actually excludes any peer in this fixture, e.g. by comparing against a LEFT JOIN variant of
-> the same query. If it excludes one, show it; if it does not, explain why the tradeoff still
-> matters for this tool's general contract, and describe what an excluded row would look like if
-> the fixture had one.
+> **Q7** Call `find_router_links_between_asns(15133, 1299)` and show the rows where one `link_id`
+> appears more than once with a different `node_b` -- a multi-endpoint "hyperlink" contributing more
+> than one row, not a duplicate. Then call it with `asn_a = asn_b = 15133` and explain in one or two
+> sentences why that should return Edgecast's own intra-network links rather than an error.
 
-### Q8 — From the seed ASN to a node's peers
+### Q8 — From a seed ASN to its neighbors
 
-The notebook sends two more fixed prompts, now with all seven tools attached, using the same seeds
-(ASN `64500`, the two nodes it returns, countries `US`/`DE`, IP seed `192.0.2.1`):
+The notebook sends two more fixed prompts, now with all seven tools attached, still seeded on
+**AS15133 (Edgecast)**:
 
-- **Prompt C:** "For ASN 64500, list every router node assigned to it and the assignment method for
-  each. Then, for the first two node IDs in the tool's stable order, report the peer nodes and peer
-  ASNs. State the row count of every tool call you make."
-- **Prompt D:** "Starting from the interface 192.0.2.1, connect what you can: the hostname, the
-  node, that node's links and peers, its AS assignments, and its geolocation. Then give a short
-  interpretation of what this evidence does and does not establish."
+- **Prompt C:** "For ASN 15133, list every router node assigned to it, the assignment method for
+  each, and each node's geolocation. Then, for AS15133 paired with AS174 (Cogent) and again with
+  AS1299 (Arelion), report every router-level link between them. State the row count of every tool
+  call you make."
+- **Prompt D:** "Starting from ASN 15133, connect what you can: its router nodes, their
+  geolocations, their PTR hostnames, and every router-level link they share with AS174 or AS1299.
+  Then give a short interpretation of what this evidence does and does not establish."
 
-> **Q8** For seed ASN `64500`: how many distinct router nodes are returned and which assignment
-> methods occur? Explain why this is a snapshot-specific assignment count rather than a complete
-> current inventory of the AS. Then choose one returned node by a reproducible rule, report what
-> `find_peer_asns_for_node` returns for it, and identify which records need special care — a link
-> with other than two endpoint rows, an endpoint with no interface encoding, or a peer dropped by
-> the INNER join.
+> **Q8** How many router nodes does ASN 15133 return, and what assignment method(s)? Pick one other
+> AS and compare its `count_nodes_by_asn_and_country` total against its `find_nodes_by_asn` row
+> count -- do they match? If not, what does the gap mean? Name one record from this investigation
+> that needs special care (a multi-endpoint link, a node missing geolocation, or a missing PTR).
 
 ### Q9 — Evidence table and audit
 
-Build a reproducible evidence table from the IP/hostname seed, using only MCP tools, and preserve
+Build a reproducible evidence table starting from ASN 15133, using only MCP tools, and preserve
 every call record (tool, arguments, artifact, row count, columns, transformation applied
-afterwards). Merge only on documented keys; preserve unmatched rows rather than manufacturing a
-link. `find_hostnames_for_asn` can supply the whole name side for one ASN in a single call — if you
-use it, say which interfaces it excluded and why.
+afterwards). Merge only on documented keys (`node_id`, `asn`, `ip`); preserve unmatched rows rather
+than manufacturing a link.
 
 Then split Prompt D's answer into individual factual claims and mark each one:
 
 - **supported** — the cited artifact and your transformation establish it;
 - **underspecified** — plausible, but missing the snapshot, grain, method, or filter;
-- **overstated** — stronger than the evidence, e.g. an inference stated as certainty;
+- **overstated** — stronger than the evidence, e.g. an inference stated as certainty, or a router
+  adjacency described as a business relationship;
 - **unsupported** — no captured artifact establishes it.
 
 > **Q9** Present your evidence table and the claim audit. Identify at least one claim that is
@@ -577,15 +653,21 @@ Then split Prompt D's answer into individual factual claims and mark each one:
 
 - **Node** — an ITDK router inferred by grouping interface addresses that likely belong to one
   device. An inference, not a confirmed device.
-- **Link** — an inferred router-level adjacency. Some links have more than two endpoints.
+- **Link** — an inferred router-level adjacency. Some links have more than two endpoints
+  ("hyperlinks") -- treat each as a genuine multi-endpoint observation, not a broken pair, and
+  don't silently collapse the extra endpoints when counting.
 - **ASN** — the numeric identifier of an Autonomous System (a network under one routing policy).
+- **Border router** — one of the two (or more) routers on an inferred link whose endpoints belong
+  to *different* ASes -- the physical point at which one AS hands traffic to another. An inferred
+  adjacency, not proof of a business peering agreement, capacity, or traffic volume.
 - **`endpoint_token` vs. `node_id`** — `endpoint_token` is the raw source encoding of one endpoint
   (sometimes `node:interface`, sometimes bare); `node_id` is the normalized router key every
   relation agrees on. Join on `node_id`; treat `endpoint_token` as evidence about an interface.
-- **Teaching snapshot vs. fixture** — the *teaching snapshot* is the frozen, instructor-published
-  ITDK subset used for graded analysis; the *fixture* (`nids-itdk-mcp-synthetic-v1`) is the
-  invented local dataset used for Part 1, tests, and development. Fixture rows are not
-  measurements of the public Internet.
+- **Teaching snapshot vs. fixture** — the *teaching snapshot* is the real, instructor-provisioned
+  read-only role on the shared CAIDA ITDK database, and is the target of every graded question; the
+  *fixture* (`nids-itdk-mcp-synthetic-v1`) is a small invented local dataset that exists only so
+  `uv run pytest` has something deterministic to run against while you develop
+  `student_tools.py`. Never answer a graded question from the fixture.
 
 ---
 
