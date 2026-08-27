@@ -1,12 +1,12 @@
 """Executable specifications for the three student-owned MCP tools.
 
 These tests are expected failures in the distributed starter: none of
-``find_links_for_node``, ``find_peer_asns_for_node``, or
-``find_hostnames_for_asn`` has a schema, a description, or a query body yet
--- see ``src/itdk_mcp/student_tools.py`` for the ``TODO(student)`` markers and
-the intended reference SQL for each. Remove the module-level ``xfail`` marker
-after implementing the tool(s) you build, then add at least one meaningful
-test of your own per tool to this file.
+``get_node_geolocation``, ``find_router_links_between_asns``, or
+``count_nodes_by_asn_and_country`` has a schema, a description, or a query
+body yet -- see ``src/itdk_mcp/student_tools.py`` for the ``TODO(student)``
+markers and the intended reference SQL for each. Remove the module-level
+``xfail`` marker after implementing the tool(s) you build, then add at least
+one meaningful test of your own per tool to this file.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from itdk_mcp.data_access import CsvResult
 from itdk_mcp.data_access.query import Query
 from itdk_mcp.mcp_tools import TOOL_DESCRIPTIONS, TOOL_SCHEMAS
 from itdk_mcp.student_tools import (
-    find_hostnames_for_asn,
-    find_links_for_node,
-    find_peer_asns_for_node,
+    count_nodes_by_asn_and_country,
+    find_router_links_between_asns,
+    get_node_geolocation,
 )
 
 pytestmark = [
@@ -50,100 +50,93 @@ def _normalized(query: Query) -> str:
 
 
 # ---------------------------------------------------------------------------
-# find_links_for_node(node_id) -> link_id, endpoint_ordinal, endpoint_token,
-# node_id ordered by (link_id, endpoint_ordinal).
+# get_node_geolocation(node_id) -> node_id, continent, country, region, city,
+# latitude, longitude, method, ordered by node_id.
 # ---------------------------------------------------------------------------
 
 
-def test_find_links_for_node_is_a_discoverable_tool() -> None:
-    assert "find_links_for_node" in TOOL_SCHEMAS
-    assert "find_links_for_node" in TOOL_DESCRIPTIONS
-    schema = TOOL_SCHEMAS["find_links_for_node"]
+def test_get_node_geolocation_is_a_discoverable_tool() -> None:
+    assert "get_node_geolocation" in TOOL_SCHEMAS
+    assert "get_node_geolocation" in TOOL_DESCRIPTIONS
+    schema = TOOL_SCHEMAS["get_node_geolocation"]
     assert _valid(schema, {"node_id": "N1"})
     assert not _valid(schema, {})
     assert not _valid(schema, {"node_id": "N1", "order_by": "random()"})
 
 
-def test_find_links_for_node_repository_is_fixed_and_stably_ordered() -> None:
+def test_get_node_geolocation_repository_is_fixed_and_stably_ordered() -> None:
     executor = RecordingExecutor()
-    find_links_for_node(executor, "N1")
+    get_node_geolocation(executor, "N1")
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
     assert parameters == ("N1",)
-    assert "FROM caida_itdk.itdk_link_endpoints" in statement
+    assert "FROM caida_itdk.itdk_node_geolocation" in statement
     assert "WHERE node_id = %s" in statement
-    assert "ORDER BY link_id, endpoint_ordinal" in statement
+    assert "ORDER BY node_id" in statement
     assert [column.name for column in query.columns] == [
-        "link_id", "endpoint_ordinal", "endpoint_token", "node_id"
+        "node_id", "continent", "country", "region", "city",
+        "latitude", "longitude", "method",
     ]
 
 
 # ---------------------------------------------------------------------------
-# find_peer_asns_for_node(node_id) -> DISTINCT peer_node_id, peer_asn,
-# peer_method ordered by (peer_node_id, peer_asn).
+# find_router_links_between_asns(asn_a, asn_b) -> link_id, node_a, node_b,
+# ordered by (link_id, node_a, node_b).
 # ---------------------------------------------------------------------------
 
 
-def test_find_peer_asns_for_node_is_a_discoverable_tool() -> None:
-    assert "find_peer_asns_for_node" in TOOL_SCHEMAS
-    assert "find_peer_asns_for_node" in TOOL_DESCRIPTIONS
-    schema = TOOL_SCHEMAS["find_peer_asns_for_node"]
-    assert _valid(schema, {"node_id": "N2"})
+def test_find_router_links_between_asns_is_a_discoverable_tool() -> None:
+    assert "find_router_links_between_asns" in TOOL_SCHEMAS
+    assert "find_router_links_between_asns" in TOOL_DESCRIPTIONS
+    schema = TOOL_SCHEMAS["find_router_links_between_asns"]
+    assert _valid(schema, {"asn_a": 3356, "asn_b": 2906})
+    assert not _valid(schema, {"asn_a": 3356})
     assert not _valid(schema, {})
-    assert not _valid(schema, {"node_id": "N2", "raw_sql": "SELECT 1"})
+    assert not _valid(schema, {"asn_a": 3356, "asn_b": 2906, "raw_sql": "SELECT 1"})
 
 
-def test_find_peer_asns_for_node_query_self_joins_links_and_as_assignments() -> None:
+def test_find_router_links_between_asns_query_self_joins_link_endpoints() -> None:
     executor = RecordingExecutor()
-    find_peer_asns_for_node(executor, "N2")
+    find_router_links_between_asns(executor, 3356, 2906)
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
-    assert parameters == ("N2",)
-    assert "DISTINCT" in statement
+    assert parameters == (3356, 2906)
     assert "FROM caida_itdk.itdk_link_endpoints" in statement
     assert "JOIN caida_itdk.itdk_link_endpoints" in statement
-    assert "JOIN caida_itdk.itdk_node_as" in statement
+    assert "FROM caida_itdk.itdk_node_as" in statement
     assert "node_id <>" in statement
-    assert "ORDER BY peer_node_id, peer_asn" in statement
-    assert [column.name for column in query.columns] == [
-        "peer_node_id", "peer_asn", "peer_method"
-    ]
+    assert "ORDER BY" in statement and "link_id" in statement
+    assert [column.name for column in query.columns] == ["link_id", "node_a", "node_b"]
 
 
 # ---------------------------------------------------------------------------
-# find_hostnames_for_asn(asn) -> DISTINCT node_id, ip, hostname ordered by
-# (node_id, ip NULLS FIRST, hostname).
+# count_nodes_by_asn_and_country(asn) -> country, node_count, ordered by
+# (node_count DESC, country).
 # ---------------------------------------------------------------------------
 
 
-def test_find_hostnames_for_asn_is_a_discoverable_tool() -> None:
-    assert "find_hostnames_for_asn" in TOOL_SCHEMAS
-    assert "find_hostnames_for_asn" in TOOL_DESCRIPTIONS
-    schema = TOOL_SCHEMAS["find_hostnames_for_asn"]
-    assert _valid(schema, {"asn": 64500})
+def test_count_nodes_by_asn_and_country_is_a_discoverable_tool() -> None:
+    assert "count_nodes_by_asn_and_country" in TOOL_SCHEMAS
+    assert "count_nodes_by_asn_and_country" in TOOL_DESCRIPTIONS
+    schema = TOOL_SCHEMAS["count_nodes_by_asn_and_country"]
+    assert _valid(schema, {"asn": 3356})
     assert not _valid(schema, {"asn": 0})
-    assert not _valid(schema, {"asn": "64500"})
+    assert not _valid(schema, {"asn": "3356"})
     assert not _valid(schema, {})
 
 
-def test_find_hostnames_for_asn_query_parses_endpoint_token_and_joins_hostnames() -> None:
+def test_count_nodes_by_asn_and_country_query_groups_and_orders_by_count() -> None:
     executor = RecordingExecutor()
-    find_hostnames_for_asn(executor, 64500)
+    count_nodes_by_asn_and_country(executor, 3356)
     query, parameters = executor.calls[-1]
     statement = _normalized(query)
-    assert parameters == (64500,)
-    assert "DISTINCT" in statement
+    assert parameters == (3356,)
     assert "FROM caida_itdk.itdk_node_as" in statement
-    assert "JOIN caida_itdk.itdk_link_endpoints" in statement
-    assert "JOIN caida_itdk.itdk_router_hostnames" in statement
-    # split_part(endpoint_token, ':', 2) truncates IPv6 tokens like
-    # "N1:2001:db8:1::1" down to just "2001" and fails the ::inet cast; the
-    # working pattern finds the first colon and takes everything after it.
-    assert "split_part" not in statement
-    assert "strpos" in statement
-    assert "::inet" in statement
-    assert "ORDER BY" in statement and "NULLS FIRST" in statement
-    assert [column.name for column in query.columns] == ["node_id", "ip", "hostname"]
+    assert "JOIN caida_itdk.itdk_node_geolocation" in statement
+    assert "COUNT(DISTINCT" in statement.upper() or "COUNT(DISTINCT" in statement
+    assert "GROUP BY" in statement
+    assert "ORDER BY node_count DESC, country" in statement
+    assert [column.name for column in query.columns] == ["country", "node_count"]
 
 
 # TODO(student): Add at least one test of your own per tool below this line.

@@ -39,7 +39,11 @@ services:
       context: .
     environment:
       MCP_MASTER_KEY: "${MCP_MASTER_KEY:?export MCP_MASTER_KEY or pass the credentials file with --env-file}"
-      DATABASE_URL: postgresql://itdk_reader:fixture-reader-local-only@db:5432/itdk_fixture
+      # Defaults to the local synthetic fixture (dev/test only). For Parts 2/3's graded
+      # work, set ITDK_DATABASE_URL in itdk_mcp_credentials.env to the real read-only
+      # teaching-snapshot DSN your instructor provides -- the same database Part 1's
+      # db_credentials.env points at directly.
+      DATABASE_URL: "${ITDK_DATABASE_URL:-postgresql://itdk_reader:fixture-reader-local-only@db:5432/itdk_fixture}"
       MCP_HOST: 0.0.0.0
       MCP_PORT: "${MCP_PORT:-8000}"
       DB_POOL_MAX: "3"

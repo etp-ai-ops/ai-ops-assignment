@@ -6,9 +6,9 @@ README | [Assignment](ASSIGNMENT.md) | [Fixture data](data/README.md) | [Noteboo
 
 **GitHub:** https://github.com/CAIDA/nids-itdk-mcp
 
-You explore CAIDA ITDK relations with SQL, drive a working MCP server through an agent, build
-three new MCP tools of your own, and use all seven to investigate router-level topology — nine
-questions across three parts, all answered in one notebook.
+You investigate real, named autonomous systems in the CAIDA ITDK with hand-written SQL, drive a
+working MCP server through an agent, build three new general-purpose MCP tools of your own, and
+use all seven to investigate router-level topology — three parts, all answered in one notebook.
 
 ## Start here
 
@@ -17,12 +17,18 @@ questions across three parts, all answered in one notebook.
 3. Work through [nids-itdk-mcp.ipynb](nids-itdk-mcp.ipynb) top to bottom. It is the single
    deliverable, alongside `src/itdk_mcp/student_tools.py` and `tests/test_student_tools.py`.
 
+**For instructors:** the answer key — every SQL blank filled in, the three tools implemented, and
+every question answered from a real, executed run against the live teaching snapshot (agent cells
+run against `kimi` at `temperature=0`, the most reliable model tested) — lives in the separate
+[ai-ops-assignment-key](https://github.com/etp-ai-ops/ai-ops-assignment-key) repository, not in
+this one. Keep it out of what you distribute to students; do not commit it here.
+
 ## Setup
 
 Copy the two names-only templates to their git-ignored counterparts and fill in only the values
-your instructor supplies — including `OPENAI_API_KEY` and `OPENAI_BASE_URL`, which Parts 2 and 3
-need for the notebook's agent cells (NRP Nautilus by default, so you aren't limited by needing your
-own Claude subscription/API key). Never commit a real key.
+your instructor supplies — including `OPENAI_API_KEY` and `OPENAI_BASE_URL` (Parts 2 and 3's agent
+cells) and the real teaching-snapshot `ITDK_READ_DSN` (Part 1's direct SQL). Never commit a real
+key or credential.
 
 ```bash
 cp itdk_mcp_credentials.env.example itdk_mcp_credentials.env
@@ -54,11 +60,15 @@ uv run python -m examples.python_client.environment_check
 uv run jupyter lab nids-itdk-mcp.ipynb
 ```
 
-Docker Compose also publishes the fixture PostgreSQL database on `127.0.0.1:${ITDK_DB_PORT:-5433}`
-for Part 1's direct-SQL cells; `db_credentials.env` holds that read-only DSN. If your course
-handout gives different commands, ports, filenames, or an NRP launch process, the handout takes
-precedence. Never commit `itdk_mcp_credentials.env`, `db_credentials.env`, bearer keys, API keys,
-database passwords, generated CSVs, or licensed ITDK data.
+Part 1's direct-SQL cells connect straight to the real teaching snapshot; `db_credentials.env`
+holds that read-only DSN, and there is no local fallback -- fill it in with what your instructor
+provides. For Parts 2/3, point the MCP server at the same real snapshot by setting
+`ITDK_DATABASE_URL` in `itdk_mcp_credentials.env`; leave it unset to develop and test
+`student_tools.py` against the local synthetic fixture Docker Compose starts by default (never a
+target for graded questions). If your course handout gives different commands, ports, filenames,
+or an NRP launch process, the handout takes precedence. Never commit `itdk_mcp_credentials.env`,
+`db_credentials.env`, bearer keys, API keys, database passwords, generated CSVs, or licensed ITDK
+data.
 
 ## Directory structure
 
@@ -99,7 +109,7 @@ nids-itdk-mcp/
 
 - [CAIDA Internet Topology Data Kit](https://www.caida.org/catalog/datasets/internet-topology-data-kit/) — the dataset's purpose and release context.
 - [Model Context Protocol: Tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) — tool discovery, calls, input schemas, structured results.
-- [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) — the `tools`/`tool_calls` shape the notebook's client-side agent loop uses.
+- [Anthropic MCP connector](https://docs.claude.com/en/docs/agents-and-tools/mcp-connector) — the remote-MCP parameters the notebook's agent cells use.
 - Optional: [Hoiho: Internet Router Geolocation using Hostname Data](https://www.caida.org/catalog/papers/2021_hoiho/).
 
 Prerequisites: the NIDS [ITDK](https://github.com/CAIDA/nids-itdk) and

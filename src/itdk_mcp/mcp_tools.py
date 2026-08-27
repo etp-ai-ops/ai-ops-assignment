@@ -3,11 +3,11 @@
 ``get_link_endpoints``, ``find_nodes_by_asn``, ``search_nodes_by_geolocation``,
 and ``lookup_router_hostnames`` are complete, restrictive, fully-worked tool
 contracts. Nothing in this file is student work: the three remaining tools
-(``find_links_for_node``, ``find_peer_asns_for_node``, and
-``find_hostnames_for_asn``) are declared, implemented, and dispatched entirely
-from ``student_tools.py`` -- search ``TODO(student)`` there. Their schemas and
-descriptions are merged into the registries below automatically, and any call
-naming one of them is routed to ``student_tools.dispatch``.
+(``get_node_geolocation``, ``find_router_links_between_asns``, and
+``count_nodes_by_asn_and_country``) are declared, implemented, and dispatched
+entirely from ``student_tools.py`` -- search ``TODO(student)`` there. Their
+schemas and descriptions are merged into the registries below automatically,
+and any call naming one of them is routed to ``student_tools.dispatch``.
 """
 
 from __future__ import annotations

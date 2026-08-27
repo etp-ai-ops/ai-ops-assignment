@@ -1,8 +1,9 @@
 """Fixed link endpoint queries.
 
 ``get_link_endpoints`` is complete and is the worked example of the fixed,
-parameterized query pattern. The student-built ``find_links_for_node`` lives
-in ``itdk_mcp/student_tools.py`` and reuses ``LINK_COLUMNS`` from here.
+parameterized query pattern. The student-built ``find_router_links_between_asns``
+lives in ``itdk_mcp/student_tools.py`` and defines its own column metadata,
+since its projection (``link_id, node_a, node_b``) differs from this module's.
 """
 
 from __future__ import annotations

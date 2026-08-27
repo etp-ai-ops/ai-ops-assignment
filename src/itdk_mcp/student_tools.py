@@ -6,19 +6,24 @@ file. ``mcp_tools.py`` merges ``STUDENT_TOOL_SCHEMAS`` and
 three tool names here through :func:`dispatch`, so you never have to touch
 the completed server code to make a new tool discoverable.
 
-Search for ``TODO(student)`` below. For each of ``find_links_for_node``,
-``find_peer_asns_for_node``, and ``find_hostnames_for_asn`` you must:
+Search for ``TODO(student)`` below. For each of ``get_node_geolocation``,
+``find_router_links_between_asns``, and ``count_nodes_by_asn_and_country`` you
+must:
 
 1. add its restrictive JSON Schema to ``STUDENT_TOOL_SCHEMAS``;
 2. add its description to ``STUDENT_TOOL_DESCRIPTIONS``;
 3. define a module-level :class:`~itdk_mcp.data_access.query.Query` with fixed
    SQL text, ordered column metadata, and a filename prefix; and
-4. execute it from the matching function below with the caller's value bound
-   as a parameter -- never interpolated into the SQL text.
+4. execute it from the matching function below with the caller's value(s)
+   bound as parameters -- never interpolated into the SQL text.
 
-The contracts (columns, ordering, SQL shape) are fixed by ASSIGNMENT.md. Do
-not invent different column names or orderings: the tests and the answer key
-assume exactly these.
+These three tools are deliberately general-purpose: each takes only ASN(s) or
+a node_id and returns raw rows, so an agent (or your own notebook code) can
+combine them to answer many different questions -- border routers between any
+two ASes, a node's location, or an AS's country footprint -- rather than one
+narrow, single-purpose query apiece. The contracts (columns, ordering, SQL
+shape) are fixed by ASSIGNMENT.md. Do not invent different column names or
+orderings: the tests and the answer key assume exactly these.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ from typing import Any, Final, cast
 
 from psycopg import sql  # noqa: F401  (needed once you define your Query objects)
 
-from .data_access.links import LINK_COLUMNS  # noqa: F401  (find_links_for_node reuses these)
+from .data_access.nodes import GEOLOCATION_COLUMNS  # noqa: F401  (get_node_geolocation reuses these)
 from .data_access.query import FixedQueryExecutor, Query  # noqa: F401
 from .data_access.result_writer import Column, CsvResult  # noqa: F401
 
@@ -67,120 +72,126 @@ def _object_schema(properties: dict[str, Any], *, required: list[str]) -> dict[s
 # ---------------------------------------------------------------------------
 
 STUDENT_TOOL_SCHEMAS: Final[dict[str, dict[str, Any]]] = {
-    # TODO(student): Add "find_links_for_node" and "find_peer_asns_for_node"
-    # entries taking one required node_id (IDENTIFIER_SCHEMA), and a
-    # "find_hostnames_for_asn" entry taking one required asn (ASN_SCHEMA).
-    # Use _object_schema(...) so additionalProperties stays false.
+    # TODO(student): Add "get_node_geolocation" (one required node_id, using
+    # IDENTIFIER_SCHEMA), "find_router_links_between_asns" (two required
+    # properties asn_a and asn_b, both ASN_SCHEMA), and
+    # "count_nodes_by_asn_and_country" (one required asn, ASN_SCHEMA). Use
+    # _object_schema(...) so additionalProperties stays false on all three.
 }
 
 STUDENT_TOOL_DESCRIPTIONS: Final[dict[str, str]] = {
     # TODO(student): Add one precise description per tool. Say what the tool
-    # returns AND what it excludes -- an agent picks a tool from this text, so
-    # the INNER-join limitations belong here, not only in your notebook.
+    # returns AND what it excludes -- an agent picks a tool from this text.
+    # find_router_links_between_asns in particular must document that passing
+    # the same ASN for asn_a and asn_b returns that AS's own intra-network
+    # router-level links, not an error -- a caller who does not expect that
+    # needs to be told.
 }
 
 
 # ---------------------------------------------------------------------------
-# find_links_for_node(node_id)
-#   -> link_id, endpoint_ordinal, endpoint_token, node_id
-#      ordered by (link_id, endpoint_ordinal)
+# get_node_geolocation(node_id)
+#   -> node_id, continent, country, region, city, latitude, longitude, method
+#      ordered by node_id (at most one row: node_id is that table's primary key)
 # ---------------------------------------------------------------------------
 
-# TODO(student): Define _FIND_LINKS_FOR_NODE = Query(sql.SQL(...), LINK_COLUMNS,
-# "find_links_for_node") here.
+# TODO(student): Define _GET_NODE_GEOLOCATION = Query(sql.SQL(...),
+# GEOLOCATION_COLUMNS, "get_node_geolocation") here.
 
 
-def find_links_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvResult:
-    """Write all link-endpoint records that contain ``node_id``."""
+def get_node_geolocation(executor: FixedQueryExecutor, node_id: str) -> CsvResult:
+    """Write the single geolocation row for ``node_id``, if one exists."""
     # TODO(student): Complete this vertical slice by defining a fixed Query
-    # above and executing it here. Preserve LINK_COLUMNS and stable ordering
-    # by link_id then endpoint_ordinal. Never interpolate node_id into SQL:
+    # above and executing it here. Never interpolate node_id into SQL:
     #
-    #     SELECT link_id, endpoint_ordinal, endpoint_token, node_id
-    #     FROM caida_itdk.itdk_link_endpoints
+    #     SELECT node_id, continent, country, region, city,
+    #            latitude, longitude, method
+    #     FROM caida_itdk.itdk_node_geolocation
     #     WHERE node_id = %s
-    #     ORDER BY link_id, endpoint_ordinal
+    #     ORDER BY node_id
     #
-    # Filtering endpoint rows by one node answers "which endpoint records
-    # contain this node?" -- it does not return every endpoint on those links.
-    raise NotImplementedError("TODO(student): implement find_links_for_node")
+    # node_id is that table's primary key, so this returns zero or one row --
+    # zero rows means "no geolocation annotation for this node", not an error.
+    raise NotImplementedError("TODO(student): implement get_node_geolocation")
 
 
 # ---------------------------------------------------------------------------
-# find_peer_asns_for_node(node_id)
-#   -> DISTINCT peer_node_id, peer_asn, peer_method
-#      ordered by (peer_node_id, peer_asn)
+# find_router_links_between_asns(asn_a, asn_b)
+#   -> link_id, node_a, node_b
+#      ordered by (link_id, node_a, node_b)
 # ---------------------------------------------------------------------------
 
-# TODO(student): Define _FIND_PEER_ASNS_FOR_NODE = Query(...) with columns
-# (Column("peer_node_id", "string"), Column("peer_asn", "int64"),
-#  Column("peer_method", "string")) and prefix "find_peer_asns_for_node".
+# TODO(student): Define _FIND_ROUTER_LINKS_BETWEEN_ASNS = Query(...) with
+# columns (Column("link_id", "string"), Column("node_a", "string"),
+# Column("node_b", "string")) and prefix "find_router_links_between_asns".
 
 
-def find_peer_asns_for_node(executor: FixedQueryExecutor, node_id: str) -> CsvResult:
-    """Write the distinct ASNs adjacent to ``node_id`` across its links."""
-    # TODO(student): Define a fixed Query self-joining
-    # caida_itdk.itdk_link_endpoints on link_id (excluding the seed
-    # node_id's own row) and joining caida_itdk.itdk_node_as on the peer
-    # node_id. Bind node_id as the sole %s parameter. Project
-    # peer_node_id, peer_asn, peer_method as DISTINCT rows ordered by
-    # (peer_node_id, peer_asn). An intended reference query:
+def find_router_links_between_asns(
+    executor: FixedQueryExecutor, asn_a: int, asn_b: int
+) -> CsvResult:
+    """Write every router-level link with one endpoint in each ASN."""
+    # TODO(student): Define a fixed Query with two CTEs selecting the node_ids
+    # assigned to asn_a and asn_b, then self-joining itdk_link_endpoints on
+    # link_id (excluding the same endpoint row) to keep only links where one
+    # endpoint's node is in the asn_a set and the other endpoint's node is in
+    # the asn_b set. Bind asn_a and asn_b as the two %s parameters, in that
+    # order. An intended reference query:
     #
-    #     SELECT DISTINCT e2.node_id AS peer_node_id,
-    #            a2.asn AS peer_asn, a2.method AS peer_method
+    #     WITH a_nodes AS (
+    #         SELECT node_id FROM caida_itdk.itdk_node_as WHERE asn = %s
+    #     ),
+    #     b_nodes AS (
+    #         SELECT node_id FROM caida_itdk.itdk_node_as WHERE asn = %s
+    #     )
+    #     SELECT e1.link_id, e1.node_id AS node_a, e2.node_id AS node_b
     #     FROM caida_itdk.itdk_link_endpoints e1
+    #     JOIN a_nodes ON a_nodes.node_id = e1.node_id
     #     JOIN caida_itdk.itdk_link_endpoints e2
     #       ON e2.link_id = e1.link_id AND e2.node_id <> e1.node_id
-    #     JOIN caida_itdk.itdk_node_as a2 ON a2.node_id = e2.node_id
-    #     WHERE e1.node_id = %s
-    #     ORDER BY peer_node_id, peer_asn
+    #     JOIN b_nodes ON b_nodes.node_id = e2.node_id
+    #     ORDER BY e1.link_id, node_a, node_b
     #
-    # DISTINCT collapses the fan-out from a node sitting on more than one
-    # link to the same peer. Note the INNER join on itdk_node_as excludes
-    # peers with no AS assignment row -- document that tradeoff.
-    raise NotImplementedError("TODO(student): implement find_peer_asns_for_node")
+    # Passing the same ASN for both arguments is not rejected: it returns
+    # that AS's own intra-network router-level links (both endpoints drawn
+    # from the same node set), which is a legitimate, distinct question, not
+    # an error condition. Document that in the tool description.
+    raise NotImplementedError("TODO(student): implement find_router_links_between_asns")
 
 
 # ---------------------------------------------------------------------------
-# find_hostnames_for_asn(asn)
-#   -> DISTINCT node_id, ip, hostname
-#      ordered by (node_id, ip NULLS FIRST, hostname)
+# count_nodes_by_asn_and_country(asn)
+#   -> country, node_count
+#      ordered by (node_count DESC, country)
 # ---------------------------------------------------------------------------
 
-# TODO(student): Define _FIND_HOSTNAMES_FOR_ASN = Query(...) with columns
-# (Column("node_id", "string"), Column("ip", "inet"),
-#  Column("hostname", "string")) and prefix "find_hostnames_for_asn".
+# TODO(student): Define _COUNT_NODES_BY_ASN_AND_COUNTRY = Query(...) with
+# columns (Column("country", "string"), Column("node_count", "int64")) and
+# prefix "count_nodes_by_asn_and_country".
 
 
-def find_hostnames_for_asn(executor: FixedQueryExecutor, asn: int) -> CsvResult:
-    """Write the distinct (node_id, ip, hostname) triples observed for one ASN."""
+def count_nodes_by_asn_and_country(executor: FixedQueryExecutor, asn: int) -> CsvResult:
+    """Write one ASN's geolocated router count, grouped by country."""
     # TODO(student): Define a fixed Query starting from the indexed asn
     # predicate on caida_itdk.itdk_node_as, joining
-    # caida_itdk.itdk_link_endpoints on node_id, then parsing the
-    # embedded interface address out of endpoint_token to join
-    # caida_itdk.itdk_router_hostnames on ip. Bind asn as the sole %s
-    # parameter. Project DISTINCT node_id, ip, hostname ordered by
-    # (node_id, ip NULLS FIRST, hostname). An intended reference query:
+    # caida_itdk.itdk_node_geolocation on node_id, grouping by country, and
+    # counting DISTINCT node_id per group (a node could in principle appear
+    # more than once per country if the join fanned out -- COUNT(DISTINCT)
+    # keeps the count meaning "routers", not "join rows"). Bind asn as the
+    # sole %s parameter. An intended reference query:
     #
-    #     SELECT DISTINCT le.node_id, h.ip, h.hostname
+    #     SELECT g.country, COUNT(DISTINCT a.node_id) AS node_count
     #     FROM caida_itdk.itdk_node_as a
-    #     JOIN caida_itdk.itdk_link_endpoints le ON le.node_id = a.node_id
-    #     JOIN caida_itdk.itdk_router_hostnames h
-    #       ON h.ip = CASE WHEN strpos(le.endpoint_token, ':') > 0
-    #                      THEN substring(le.endpoint_token FROM strpos(le.endpoint_token, ':') + 1)::inet
-    #                 END
+    #     JOIN caida_itdk.itdk_node_geolocation g ON g.node_id = a.node_id
     #     WHERE a.asn = %s
-    #     ORDER BY le.node_id, h.ip NULLS FIRST, h.hostname
+    #     GROUP BY g.country
+    #     ORDER BY node_count DESC, country
     #
-    # Do NOT use split_part(endpoint_token, ':', 2)/NULLIF/::inet here:
-    # split_part only returns the text between the FIRST and SECOND
-    # colon, which truncates an IPv6 token like "N1:2001:db8:1::1" down
-    # to just "2001" and fails the ::inet cast. strpos/substring finds
-    # the first colon and takes everything after it, which works for
-    # both IPv4 and IPv6 tokens. Note the INNER joins exclude interfaces
-    # with no PTR row and bare endpoint_token values with no embedded IP
-    # (e.g. fixture L2's bare "N2" token) -- document that tradeoff.
-    raise NotImplementedError("TODO(student): implement find_hostnames_for_asn")
+    # A node with no geolocation row at all is excluded by this INNER join --
+    # this tool answers "how is this AS's *geolocated* footprint
+    # distributed", not "how many routers does this AS have in total". Look
+    # up the total from find_nodes_by_asn's row_count and compare the two if
+    # you need to know how much geolocation coverage is missing.
+    raise NotImplementedError("TODO(student): implement count_nodes_by_asn_and_country")
 
 
 # ---------------------------------------------------------------------------
@@ -192,10 +203,12 @@ def dispatch(
     executor: FixedQueryExecutor, name: str, arguments: dict[str, Any]
 ) -> CsvResult | None:
     """Route one validated student tool call, or return ``None`` if unknown."""
-    if name == "find_links_for_node":
-        return find_links_for_node(executor, cast(str, arguments["node_id"]))
-    if name == "find_peer_asns_for_node":
-        return find_peer_asns_for_node(executor, cast(str, arguments["node_id"]))
-    if name == "find_hostnames_for_asn":
-        return find_hostnames_for_asn(executor, cast(int, arguments["asn"]))
+    if name == "get_node_geolocation":
+        return get_node_geolocation(executor, cast(str, arguments["node_id"]))
+    if name == "find_router_links_between_asns":
+        return find_router_links_between_asns(
+            executor, cast(int, arguments["asn_a"]), cast(int, arguments["asn_b"])
+        )
+    if name == "count_nodes_by_asn_and_country":
+        return count_nodes_by_asn_and_country(executor, cast(int, arguments["asn"]))
     return None
